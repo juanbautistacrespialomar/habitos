@@ -31,6 +31,13 @@ Una app de seguimiento de hábitos pensada para el uso diario desde el celular. 
 - Registro de **peso** con fecha (retroactiva si hace falta) y **cintura opcional**.
 - **Evolución del peso**: sparkline SVG de los últimos 14 registros + listado con IMC por fecha.
 
+### 📈 Resumen
+- **Racha** de días completos consecutivos (+ tu mejor racha histórica).
+- **Métricas** del período (toggle Semana / Mes): comidas por día, agua por día, entrenos y minutos, días con alcohol.
+- **Heatmap de adherencia**: calendario del mes con cada día coloreado según qué tan completo lo cargaste. Un día cuenta como **completo** con las 4 comidas + agua + (entreno o descanso). Tocás un día para abrirlo.
+- **Constancia por día de la semana** (barras) y **evolución del peso** del mes.
+- Todo se calcula sobre los datos existentes: no agrega ni cambia nada del modelo de datos.
+
 ### 🕓 Historial
 - Lista de todos los días con datos, en orden inverso, con tags-resumen (comidas, alcohol, agua, suplementos, entrenos, peso, sueño).
 - Tocás un día y saltás directo a él para ver o editar.

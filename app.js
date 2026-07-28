@@ -556,6 +556,157 @@ function renderHistory(){
 }
 
 /* ============================================================
+   RESUMEN (métricas + adherencia)
+   Día completo = 4 comidas + agua + (entreno o descanso cargado)
+   ============================================================ */
+let resumenPeriod = 'mes';
+const LEVELCOL = [
+  'var(--surface-2)',
+  'color-mix(in srgb, var(--primary) 28%, var(--surface-2))',
+  'color-mix(in srgb, var(--primary) 48%, var(--surface-2))',
+  'color-mix(in srgb, var(--primary) 72%, var(--surface-2))',
+  'var(--primary)'
+];
+const FIRE_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s4 3 4 7a4 4 0 01-8 0c0-1 .3-1.7.7-2.4C9 9 9 10.5 10 11c-.4-2 .8-6 2-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.5 13.5A5.5 5.5 0 1017.5 14c0-2-1-3.5-1-3.5-.3 1.6-1.5 2.2-1.5 2.2.3-2.4-1-4.7-2.5-5.7 0 2-1.2 3-2.3 4.2-.9 1-3.7 1-3.7 1.3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+// Puntaje de un día. complete = 4 comidas + agua + (entreno o descanso).
+// frac (0..1) da el tono del heatmap: comidas pesan la mitad; agua y descanso/entreno un cuarto c/u.
+function dayScore(r){
+  if(!r) return { level:0, complete:false, has:false, frac:0 };
+  const meals  = MEALS.filter(m => ((r.meals && r.meals[m.key]) || []).length > 0).length;
+  const aguaOK = !!(r.drinks && r.drinks.agua > 0);
+  const restOK = (Array.isArray(r.training) && r.training.length > 0) || (r.sueno != null);
+  const has = dayHasData(r);
+  const complete = meals === 4 && aguaOK && restOK;
+  const frac = (meals/4)*0.5 + (aguaOK?0.25:0) + (restOK?0.25:0);
+  let level;
+  if(complete) level = 4;
+  else if(!has) level = 0;
+  else if(frac >= 0.7) level = 3;
+  else if(frac >= 0.4) level = 2;
+  else level = 1;
+  return { level, complete, has, frac };
+}
+// Racha de días completos terminando en hoy (con gracia: si hoy aún no está completo, arranca en ayer).
+function completeStreak(){
+  let k = todayKey();
+  if(!dayScore(DATA[k]).complete) k = shiftDay(k, -1);
+  let s = 0, guard = 0;
+  while(dayScore(DATA[k]).complete && guard < 3660){ s++; k = shiftDay(k, -1); guard++; }
+  return s;
+}
+function bestStreak(){
+  const keys = Object.keys(DATA).filter(k => dayScore(DATA[k]).complete).sort();
+  let best = 0, cur = 0, prev = null;
+  keys.forEach(k => { cur = (prev && shiftDay(prev,1) === k) ? cur+1 : 1; if(cur > best) best = cur; prev = k; });
+  return best;
+}
+function periodStats(keys){
+  const dk = keys.filter(k => DATA[k] && dayHasData(DATA[k]));
+  const n = dk.length || 1;
+  let mealsSum=0, aguaSum=0, entrenos=0, minutos=0, alcoholDays=0, completos=0;
+  dk.forEach(k => {
+    const r = normalize(DATA[k]);
+    mealsSum += MEALS.filter(m => r.meals[m.key].length>0).length;
+    aguaSum  += r.drinks.agua || 0;
+    entrenos += r.training.length;
+    minutos  += r.training.reduce((s,t)=>s+(+t.duracion||0),0);
+    if(DRINKS.filter(d=>d.alcohol).reduce((s,d)=>s+r.drinks[d.key],0) > 0) alcoholDays++;
+    if(dayScore(r).complete) completos++;
+  });
+  return { dias:dk.length, comidasProm:mealsSum/n, aguaProm:aguaSum/n, entrenos, minutos, alcoholDays, completos };
+}
+
+function renderResumen(){
+  const wrap = document.getElementById('resumenWrap');
+  const anyData = Object.keys(DATA).some(k => dayHasData(DATA[k]));
+  if(!anyData){
+    wrap.innerHTML = `<div class="empty center">Todavía no hay datos para resumir. Cargá algunos días desde <b>Comida</b> o <b>Entreno</b> y volvé.</div>`;
+    return;
+  }
+  const monthYm = todayKey().slice(0,7);       // el resumen siempre mira el mes actual
+  const [Y,M] = monthYm.split('-').map(Number);
+  const pad = n => String(n).padStart(2,'0');
+  const dim = new Date(Y, M, 0).getDate();
+  const monthKeys = []; for(let d=1; d<=dim; d++) monthKeys.push(`${Y}-${pad(M)}-${pad(d)}`);
+
+  const statKeys = resumenPeriod === 'semana'
+    ? Array.from({length:7}, (_,i)=>shiftDay(todayKey(), -i))
+    : monthKeys.slice();
+  const st  = periodStats(statKeys);
+  const cur = completeStreak(), best = bestStreak();
+
+  // ---- heatmap del mes (lunes primero) ----
+  const firstDow = (new Date(Y, M-1, 1).getDay()+6)%7;
+  let cells = '';
+  for(let i=0;i<firstDow;i++) cells += '<div></div>';
+  monthKeys.forEach(k => {
+    const d = +k.slice(-2);
+    const future = k > todayKey();
+    const sc = dayScore(DATA[k]);
+    const bg = future ? 'var(--surface-2)' : LEVELCOL[sc.level];
+    const goto = (!future && dayHasData(DATA[k])) ? `data-goto="${k}"` : '';
+    cells += `<div class="cal-cell ${sc.level>=3?'filled':''} ${k===todayKey()?'today':''}" style="background:${bg};${future?'opacity:.35;':''}" ${goto}><span>${d}</span></div>`;
+  });
+  const monthComplete = monthKeys.filter(k => dayScore(DATA[k]).complete).length;
+
+  // ---- constancia por día de la semana (frac promedio del mes, hasta hoy) ----
+  const buckets = [[],[],[],[],[],[],[]];
+  monthKeys.forEach(k => { if(k > todayKey() || !dayHasData(DATA[k])) return; buckets[(keyToDate(k).getDay()+6)%7].push(dayScore(DATA[k]).frac); });
+  const wdAvg = buckets.map(a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0);
+  const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+  // ---- peso del mes ----
+  const wins = monthKeys.filter(k => DATA[k] && DATA[k].peso != null).map(k => ({ key:k, peso:DATA[k].peso }));
+  let pesoBlock = '';
+  if(wins.length >= 2){
+    const first = wins[0], last = wins[wins.length-1], delta = +(last.peso - first.peso).toFixed(1);
+    pesoBlock = `
+      <div class="section-title">Peso del mes</div>
+      <div class="card">${sparkline(wins)}
+        <div class="wk"><span>${keyToDate(first.key).getDate()} ${MO[keyToDate(first.key).getMonth()]} · <b>${nf(first.peso)} kg</b></span>
+        <span><b>${nf(last.peso)} kg</b> <span style="color:var(--primary-strong)">${(delta>=0?'+':'')+nf(delta)}</span></span></div>
+      </div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="period-seg" id="resPeriod">
+      <button data-p="semana" class="${resumenPeriod==='semana'?'on':''}">Semana</button>
+      <button data-p="mes" class="${resumenPeriod==='mes'?'on':''}">Mes</button>
+    </div>
+
+    <div class="card streak">
+      <div class="fire">${FIRE_ICON}</div>
+      <div><div class="n">${cur}<small> día${cur===1?'':'s'}</small></div><div class="lb">Racha de días completos</div></div>
+      <div class="best"><div class="v">${best}</div><div class="k">Mejor</div></div>
+    </div>
+
+    <div class="res-stats">
+      <div class="res-stat"><div class="k">Comidas / día</div><div class="v">${nf(st.comidasProm.toFixed(1))}<small>/4</small></div><div class="sub">${resumenPeriod==='semana'?'últimos 7 días':'promedio del mes'}</div></div>
+      <div class="res-stat"><div class="k">Agua / día</div><div class="v">${nf(st.aguaProm.toFixed(1))}<small> v</small></div><div class="sub">promedio</div></div>
+      <div class="res-stat"><div class="k">Entrenos</div><div class="v">${st.entrenos}</div><div class="sub">${st.minutos} min</div></div>
+      <div class="res-stat"><div class="k">Días con alcohol</div><div class="v">${st.alcoholDays}</div><div class="sub">de ${st.dias} con registro</div></div>
+    </div>
+
+    <div class="section-title">Adherencia · ${MO_LONG[M-1]} ${Y}</div>
+    <div class="card">
+      <div class="cal-head"><span class="m">${MO_LONG[M-1]}</span>
+        <span class="leg">menos <i style="background:var(--surface-2)"></i><i style="background:${LEVELCOL[2]}"></i><i style="background:${LEVELCOL[3]}"></i><i style="background:var(--primary)"></i> más</span></div>
+      <div class="cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-note"><b>${monthComplete} día${monthComplete===1?'':'s'}</b> completo${monthComplete===1?'':'s'} este mes. Un día cuenta con las <b>4 comidas</b>, <b>agua</b> y un <b>entreno o descanso</b>. Tocá un día para abrirlo.</div>
+    </div>
+
+    <div class="section-title">Constancia por día de la semana</div>
+    <div class="card"><div class="wd-bars">${DIAS.map((d,i)=>`<div class="wd-col ${i>=5?'wknd':''}"><div class="wd-track"><div class="wd-fill" style="height:${Math.max(3,Math.round(wdAvg[i]*100))}%"></div></div><div class="bl">${d}</div></div>`).join('')}</div></div>
+
+    ${pesoBlock}`;
+
+  wrap.querySelectorAll('#resPeriod button').forEach(b => b.onclick = () => { resumenPeriod = b.dataset.p; renderResumen(); });
+  wrap.querySelectorAll('[data-goto]').forEach(c => c.onclick = () => { current = c.dataset.goto; switchView('comida'); render(); const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0; });
+}
+
+/* ============================================================
    EXPORTAR / IMPORTAR
    Columnas: Fecha;Tipo;Categoria;Detalle;Cantidad;Unidad
    ============================================================ */
@@ -650,6 +801,7 @@ function switchView(name){
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view===name));
   document.getElementById('dateBar').style.display = DAY_VIEWS.includes(name) ? '' : 'none';
   if(name==='cuerpo') renderCuerpo();
+  if(name==='resumen') renderResumen();
   if(name==='hist') renderHistory();
   if(name==='datos') fillMonths();
   const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0;
