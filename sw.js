@@ -1,7 +1,7 @@
 /* Hábitos — Service Worker
    Subí el número de versión cada vez que cambies index.html/app.js u otros assets
    para forzar la actualización del cache en los dispositivos ya instalados. */
-const CACHE = 'habitos-v2';
+const CACHE = 'habitos-v3';
 const ASSETS = [
   './',
   './index.html',

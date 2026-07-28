@@ -70,7 +70,7 @@ function blankDay(){
   const meals = {}; MEALS.forEach(m => meals[m.key] = []);
   const drinks = {}; DRINKS.forEach(d => drinks[d.key] = 0);
   const supp = {}; SUPPS.forEach(s => supp[s.key] = 0);
-  return { meals, drinks, supp, otros:{}, training:[], peso:null, cintura:null };
+  return { meals, drinks, supp, otros:{}, training:[], peso:null, cintura:null, sueno:null };
 }
 function day(){
   if(!DATA[current]) DATA[current] = blankDay();
@@ -84,6 +84,7 @@ function normalize(r){
   if(!Array.isArray(r.training)) r.training = [];
   if(r.peso === undefined) r.peso = null;
   if(r.cintura === undefined) r.cintura = null;
+  if(r.sueno === undefined) r.sueno = null;
   return r;
 }
 function dayHasData(r){
@@ -93,7 +94,8 @@ function dayHasData(r){
     || Object.values(r.otros||{}).some(n => n>0)
     || Object.values(r.supp||{}).some(n => n>0)
     || (Array.isArray(r.training) && r.training.length>0)
-    || (r.peso != null);
+    || (r.peso != null)
+    || (r.sueno != null);
 }
 function pruneEmpty(){ Object.keys(DATA).forEach(k => { if(!dayHasData(DATA[k])) delete DATA[k]; }); }
 
@@ -107,6 +109,7 @@ function render(){
   renderDrinks();
   renderSupps();
   renderTraining();
+  renderSleep();
 }
 
 function renderDateNav(){
@@ -242,7 +245,7 @@ function renderTraining(){
     { top:'Sesiones', val:`${sesiones}`, frac: sesiones>0?1:0 },
     { top:'Minutos',  val:`${minutos}`, frac: Math.min(minutos/90,1) },
     { top:'Tipos',    val:`${tipos}`, frac: tipos/TRAIN_TYPES.length },
-    { top:'Estado',   val: sesiones>0?'✓':'—', frac: sesiones>0?1:0 },
+    { top:'Sueño',    val: r.sueno!=null ? `${nf(r.sueno)}<small> h</small>` : '—', frac: r.sueno!=null?Math.min(r.sueno/9,1):0 },
   ]);
 
   const list = document.getElementById('trainList');
@@ -267,6 +270,35 @@ function renderTraining(){
     }).join('');
     list.querySelectorAll('[data-train-del]').forEach(b => b.onclick = () => { day().training.splice(+b.dataset.trainDel,1); saveData(); render(); });
   }
+}
+
+/* ---------- Descanso / sueño ---------- */
+function renderSleep(){
+  const r = day();
+  document.getElementById('sleepCard').innerHTML = `
+    <div class="supp">
+      <div class="dot" style="background:#8B5CF6"></div>
+      <div class="lbl">Sueño <span style="color:var(--faint); font-weight:600; font-size:12px">de anoche</span></div>
+      <div class="stepper">
+        <button id="sleepMinus" aria-label="Restar">−</button>
+        <input type="number" inputmode="decimal" min="0" max="24" step="0.5" value="${r.sueno!=null?r.sueno:''}" placeholder="—" id="sleepInput" style="width:64px">
+        <span class="u">h</span>
+        <button id="sleepPlus" aria-label="Sumar">+</button>
+      </div>
+    </div>`;
+  document.getElementById('sleepPlus').onclick = () => bumpSleep(+0.5);
+  document.getElementById('sleepMinus').onclick = () => bumpSleep(-0.5);
+  document.getElementById('sleepInput').onchange = e => {
+    const v = e.target.value.trim();
+    day().sueno = v==='' ? null : Math.max(0, Math.min(24, parseFloat(v.replace(',','.'))||0));
+    saveData(); render();
+  };
+}
+function bumpSleep(delta){
+  const r = day();
+  const base = r.sueno!=null ? r.sueno : (delta>0 ? 0 : 0);
+  r.sueno = Math.max(0, Math.min(24, +(base+delta).toFixed(1)));
+  saveData(); render(); haptic();
 }
 
 function openTrainingModal(){
@@ -444,6 +476,7 @@ function renderHistory(){
     if(suppOn) tags.push(`<span class="tag">💪 suple</span>`);
     if(r.training.length) tags.push(`<span class="tag tr">🏋️ ${r.training.length}${minutos?` · ${minutos}′`:''}</span>`);
     if(r.peso!=null) tags.push(`<span class="tag">⚖️ ${nf(r.peso)} kg</span>`);
+    if(r.sueno!=null) tags.push(`<span class="tag">😴 ${nf(r.sueno)} h</span>`);
     return `
       <button class="hist-item" data-goto="${k}">
         <div class="date"><div class="day">${d.getDate()}</div><div class="mon">${MO[d.getMonth()]}</div></div>
@@ -480,6 +513,7 @@ function buildCsv(keys){
       if(PROFILE.altura) rows.push([fecha,'Cuerpo','Altura','',PROFILE.altura,'cm']);
       if(r.cintura!=null) rows.push([fecha,'Cuerpo','Cintura','',nf(r.cintura),'cm']);
     }
+    if(r.sueno!=null) rows.push([fecha,'Descanso','Sueño','',nf(r.sueno),'h']);
   });
   const csv = rows.map(row => row.map(c => { c=String(c); return /[;"\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c; }).join(';')).join('\r\n');
   return '\uFEFF' + csv;
