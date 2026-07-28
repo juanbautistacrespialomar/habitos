@@ -47,7 +47,8 @@ const THEME_KEY   = 'habitos_theme';
 
 /* ---------- Estado ---------- */
 let DATA = loadJSON(STORE_KEY, {});
-let PROFILE = loadJSON(PROFILE_KEY, { altura:null });
+const PROFILE_DEFAULT = { altura:null, nombre:'', nacimiento:'', sexo:'', objetivo:'', onboarded:false };
+let PROFILE = Object.assign({}, PROFILE_DEFAULT, loadJSON(PROFILE_KEY, {}));
 // Qué criterios cuentan para que un día sea "completo" (configurable desde Datos).
 const GOALS_DEFAULT = { comidas:true, agua:true, descanso:true, creatina:true, proteina:true };
 let GOALS = Object.assign({}, GOALS_DEFAULT, loadJSON(GOALS_KEY, {}));
@@ -63,6 +64,15 @@ function dateToKey(d){
 function keyToDate(k){ const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
 function shiftDay(k, delta){ const d = keyToDate(k); d.setDate(d.getDate()+delta); return dateToKey(d); }
 function nf(n){ return String(n).replace('.', ','); } // número con coma decimal (es-AR)
+function ageFrom(iso){
+  if(!iso) return null;
+  const b = keyToDate(iso); if(isNaN(b)) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  const mm = now.getMonth() - b.getMonth();
+  if(mm < 0 || (mm === 0 && now.getDate() < b.getDate())) a--;
+  return (a >= 0 && a < 130) ? a : null;
+}
 
 const WD = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const MO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -759,6 +769,82 @@ function renderGoals(){
 }
 
 /* ============================================================
+   PERFIL (onboarding + edición en Datos)
+   ============================================================ */
+const SEXOS = ['Masculino','Femenino','Otro'];
+const OBJETIVOS = ['Bajar','Mantener','Ganar'];
+const PERSON_ICON = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M5 20a7 7 0 0114 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+
+function openProfileModal(opts={}){
+  const onboarding = !!opts.onboarding;
+  const state = {
+    nombre: PROFILE.nombre || '', nacimiento: PROFILE.nacimiento || '',
+    sexo: PROFILE.sexo || '', altura: PROFILE.altura || '', objetivo: PROFILE.objetivo || ''
+  };
+  const bg = document.getElementById('modalBg'), m = document.getElementById('modal');
+  function draw(){
+    m.innerHTML = `
+      <h3>${onboarding ? '¡Bienvenido! Contanos de vos' : 'Editar perfil'}</h3>
+      <p class="modal-desc">${onboarding ? 'Es opcional y lo podés cambiar cuando quieras desde Datos.' : 'Estos datos se guardan solo en tu dispositivo.'}</p>
+      <div class="field"><label>Nombre</label><input id="fNom" placeholder="¿Cómo te llamás?" value="${esc(state.nombre)}" autocomplete="off" autocapitalize="words"></div>
+      <div class="field"><label>Fecha de nacimiento</label><input id="fNac" type="date" value="${state.nacimiento}" max="${todayKey()}"></div>
+      <div class="field"><label>Sexo</label><div class="seg" id="segSexo">${SEXOS.map(s=>`<button data-s="${s}" class="${state.sexo===s?'on':''}">${s}</button>`).join('')}</div></div>
+      <div class="field"><label>Altura (cm)</label><input id="fAlt" type="number" inputmode="numeric" min="80" max="260" placeholder="Ej: 178" value="${state.altura}"></div>
+      <div class="field"><label>Objetivo</label><div class="seg" id="segObj">${OBJETIVOS.map(o=>`<button data-o="${o}" class="${state.objetivo===o?'on':''}">${o}</button>`).join('')}</div></div>
+      <div class="modal-actions"><button class="btn-ghost" id="mCancel">${onboarding ? 'Ahora no' : 'Cancelar'}</button><button class="btn-primary" id="mOk">Guardar</button></div>`;
+    bg.classList.add('show');
+    m.querySelectorAll('#segSexo button').forEach(b => b.onclick = () => { sync(); state.sexo = state.sexo===b.dataset.s ? '' : b.dataset.s; draw(); });
+    m.querySelectorAll('#segObj button').forEach(b => b.onclick = () => { sync(); state.objetivo = state.objetivo===b.dataset.o ? '' : b.dataset.o; draw(); });
+    m.querySelector('#mCancel').onclick = skip;
+    m.querySelector('#mOk').onclick = save;
+  }
+  function sync(){
+    const n=m.querySelector('#fNom'), na=m.querySelector('#fNac'), a=m.querySelector('#fAlt');
+    if(n) state.nombre=n.value; if(na) state.nacimiento=na.value; if(a) state.altura=a.value;
+  }
+  function markSeen(){ PROFILE.onboarded = true; saveProfile(); }
+  function skip(){ markSeen(); bg.classList.remove('show'); }        // "Ahora no": no guarda, pero no vuelve a molestar
+  function save(){
+    sync();
+    PROFILE.nombre = state.nombre.trim();
+    PROFILE.nacimiento = state.nacimiento || '';
+    PROFILE.sexo = state.sexo || '';
+    const cm = parseInt(state.altura); if(cm>80 && cm<260) PROFILE.altura = cm;
+    PROFILE.objetivo = state.objetivo || '';
+    markSeen();
+    bg.classList.remove('show');
+    renderPerfil(); renderCuerpo(); render();
+    haptic(); toast('Perfil guardado');
+  }
+  draw();
+  bg.onclick = e => { if(e.target===bg) skip(); };
+}
+
+function renderPerfil(){
+  const wrap = document.getElementById('perfilWrap');
+  if(!wrap) return;
+  const p = PROFILE, edad = ageFrom(p.nacimiento);
+  const rows = [
+    ['Nacimiento', p.nacimiento ? p.nacimiento.split('-').reverse().join('/') : '—'],
+    ['Sexo',       p.sexo || '—'],
+    ['Altura',     p.altura ? `${p.altura} cm` : '—'],
+    ['Objetivo',   p.objetivo || '—'],
+  ];
+  wrap.innerHTML = `
+    <div class="card res-pad profile-card">
+      <div class="profile-head">
+        <div class="pavatar">${p.nombre ? esc(p.nombre.trim()[0].toUpperCase()) : PERSON_ICON}</div>
+        <div class="pmeta"><div class="pname">${p.nombre ? esc(p.nombre) : 'Tu perfil'}</div>${edad!=null ? `<div class="psub">${edad} años</div>` : '<div class="psub">Sin completar</div>'}</div>
+        <button class="edit" id="editPerfil">Editar</button>
+      </div>
+      <div class="profile-rows">
+        ${rows.map(([k,v])=>`<div class="prow"><span class="pk">${k}</span><span class="pv">${esc(String(v))}</span></div>`).join('')}
+      </div>
+    </div>`;
+  const b = wrap.querySelector('#editPerfil'); if(b) b.onclick = () => openProfileModal();
+}
+
+/* ============================================================
    EXPORTAR / IMPORTAR
    Columnas: Fecha;Tipo;Categoria;Detalle;Cantidad;Unidad
    ============================================================ */
@@ -827,7 +913,7 @@ function doRestore(file){
       const incoming = parsed.data || parsed;
       if(typeof incoming!=='object' || Array.isArray(incoming)) throw 0;
       DATA = incoming;
-      if(parsed.profile) PROFILE = parsed.profile;
+      if(parsed.profile) PROFILE = Object.assign({}, PROFILE_DEFAULT, parsed.profile);
       if(parsed.goals) GOALS = Object.assign({}, GOALS_DEFAULT, parsed.goals);
       pruneEmpty(); saveData(); saveProfile(); saveGoals();
       current = todayKey(); render(); renderCuerpo(); fillMonths();
@@ -855,7 +941,7 @@ function switchView(name){
   document.getElementById('dateBar').style.display = DAY_VIEWS.includes(name) ? '' : 'none';
   if(name==='cuerpo') renderCuerpo();
   if(name==='resumen') renderResumen();
-  if(name==='datos'){ fillMonths(); renderGoals(); }
+  if(name==='datos'){ renderPerfil(); fillMonths(); renderGoals(); }
   const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0;
 }
 
@@ -932,7 +1018,7 @@ document.getElementById('restoreInput').onchange = e => {
 };
 document.getElementById('btnReset').onclick = () => {
   openConfirm({ title:'Borrar todos los datos', desc:'Se elimina todo el historial de este dispositivo. Esta acción no se puede deshacer.', confirm:'Borrar todo', danger:true,
-    onConfirm:()=>{ DATA={}; PROFILE={altura:null}; GOALS=Object.assign({},GOALS_DEFAULT); saveData(); saveProfile(); saveGoals(); current=todayKey(); render(); renderCuerpo(); fillMonths(); toast('Datos borrados'); } });
+    onConfirm:()=>{ DATA={}; PROFILE=Object.assign({},PROFILE_DEFAULT); GOALS=Object.assign({},GOALS_DEFAULT); saveData(); saveProfile(); saveGoals(); current=todayKey(); render(); renderCuerpo(); renderPerfil(); fillMonths(); toast('Datos borrados'); } });
 };
 
 document.querySelector('main').addEventListener('scroll', (e) => document.getElementById('appbar').classList.toggle('scrolled', e.target.scrollTop>4), { passive:true });
@@ -1008,3 +1094,5 @@ if('serviceWorker' in navigator){
 initTheme();
 render();
 fillMonths();
+// Onboarding: la primera vez, ofrecemos completar el perfil (salteable, no vuelve a molestar).
+if(!PROFILE.onboarded){ setTimeout(() => openProfileModal({ onboarding:true }), 450); }

@@ -266,6 +266,20 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .switch input:checked ~ .track{background:var(--primary); border-color:var(--primary)}
 .switch input:checked ~ .knob{transform:translateX(19px)}
 
+/* ---- Perfil ---- */
+.profile-head{display:flex; align-items:center; gap:13px; margin-bottom:4px}
+.pavatar{width:52px; height:52px; border-radius:16px; flex:none; display:grid; place-items:center; background:var(--primary-tint); color:var(--primary-strong); font-size:23px; font-weight:820}
+.pavatar svg{width:26px; height:26px}
+.pmeta{flex:1; min-width:0}
+.pname{font-size:19px; font-weight:820; letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.psub{font-size:13px; color:var(--muted); font-weight:600; margin-top:1px}
+.profile-head .edit{color:var(--primary-strong); font-weight:700; font-size:13px; padding:7px 12px; border-radius:10px; background:var(--primary-tint); flex:none}
+.profile-rows{margin-top:14px; border-top:1px solid var(--border); padding-top:6px}
+.prow{display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--border)}
+.prow:last-child{border-bottom:none}
+.prow .pk{font-size:13.5px; color:var(--muted); font-weight:600}
+.prow .pv{font-size:14.5px; font-weight:700}
+
 /* ============ RESUMEN ============ */
 .period-seg{display:flex; gap:6px; background:var(--surface-2); border:1px solid var(--border); border-radius:13px; padding:4px; margin:8px 0 14px}
 .period-seg button{flex:1; padding:9px; border:none; background:none; color:var(--muted); font-weight:700; font-size:14px; border-radius:10px}
@@ -340,6 +354,7 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .modal input:focus{outline:none; border-color:var(--primary)}
 .field{margin-bottom:14px}
 .field label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin:0 2px 7px; text-transform:uppercase; letter-spacing:.04em}
+.modal-desc{font-size:13px; color:var(--muted); margin:-4px 2px 15px; line-height:1.45}
 .seg{display:flex; gap:8px}
 .seg button{flex:1; padding:11px 6px; border-radius:12px; background:var(--surface-2); border:1.5px solid var(--border); color:var(--muted); font-weight:680; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:3px}
 .seg button .e{line-height:0}
@@ -430,6 +445,9 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 
   <!-- ===== DATOS ===== -->
   <section class="view" id="view-datos">
+    <div class="section-title">Perfil</div>
+    <div id="perfilWrap"></div>
+
     <div class="section-title">Día completo</div>
     <div class="data-note" style="text-align:left; padding:0 4px 10px">Elegí qué criterios cuentan para marcar un día como completo en el Resumen. Solo se exigen los que dejes activados.</div>
     <div id="goalsWrap"></div>
