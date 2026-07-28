@@ -484,7 +484,7 @@ function renderHistory(){
         <div class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       </button>`;
   }).join('');
-  list.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { current=b.dataset.goto; switchView('comida'); render(); window.scrollTo(0,0); });
+  list.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { current=b.dataset.goto; switchView('comida'); render(); const sc=document.querySelector('main'); if(sc) sc.scrollTop=0; });
 }
 
 /* ============================================================
@@ -581,7 +581,7 @@ function switchView(name){
   if(name==='cuerpo') renderCuerpo();
   if(name==='hist') renderHistory();
   if(name==='datos') fillMonths();
-  window.scrollTo(0,0);
+  const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0;
 }
 
 function openInputModal({title, desc, placeholder, type='text', value='', confirm, onConfirm}){
@@ -649,7 +649,7 @@ document.getElementById('btnReset').onclick = () => {
     onConfirm:()=>{ DATA={}; PROFILE={altura:null}; saveData(); saveProfile(); current=todayKey(); render(); renderCuerpo(); renderHistory(); fillMonths(); toast('Datos borrados'); } });
 };
 
-addEventListener('scroll', () => document.getElementById('appbar').classList.toggle('scrolled', window.scrollY>4), { passive:true });
+document.querySelector('main').addEventListener('scroll', (e) => document.getElementById('appbar').classList.toggle('scrolled', e.target.scrollTop>4), { passive:true });
 
 /* ---------- Instalación PWA ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt=e; document.getElementById('btnInstall').classList.remove('hidden'); });
@@ -678,6 +678,35 @@ if('serviceWorker' in navigator){
     }).catch(()=>{});
   });
 }
+
+/* ---------- Parche de altura para iOS instalado (app-shell) ----------
+   En iOS standalone, 100dvh queda corto y la barra flotante "sube". Medimos el alto
+   real de la pantalla (screen.height menos el safe-area top) y lo fijamos en --saH,
+   para que el body llene toda la pantalla y la .bottomnav quede siempre abajo.
+   SOLO iOS instalado: en Android/desktop 100dvh ya funciona bien. */
+(function(){
+  var standalone = (window.navigator.standalone === true) ||
+                   (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(!(standalone && isIOS)) return;
+  document.documentElement.classList.add('sa');
+  var maxH = 0;
+  function setH(){
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;height:env(safe-area-inset-top)';
+    document.body.appendChild(probe);
+    var top = Math.round(probe.getBoundingClientRect().height); probe.remove();
+    var real = ((window.screen && window.screen.height) ? window.screen.height : window.innerHeight) - top;
+    var h = Math.max(window.innerHeight, real) + 6;
+    if(h > maxH) maxH = h; // nunca achicar: evita que la barra "rebote" hacia arriba
+    document.documentElement.style.setProperty('--saH', maxH + 'px');
+  }
+  setH();
+  [60,200,500,1000].forEach(function(t){ setTimeout(setH, t); });
+  window.addEventListener('resize', setH);
+  window.addEventListener('orientationchange', function(){ maxH = 0; setTimeout(setH, 300); });
+})();
 
 /* ============================================================
    ARRANQUE
