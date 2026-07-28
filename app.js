@@ -42,11 +42,15 @@ const IMC_BANDS = [
 
 const STORE_KEY   = 'habitos_data_v1';
 const PROFILE_KEY = 'habitos_profile_v1';
+const GOALS_KEY   = 'habitos_goals_v1';
 const THEME_KEY   = 'habitos_theme';
 
 /* ---------- Estado ---------- */
 let DATA = loadJSON(STORE_KEY, {});
 let PROFILE = loadJSON(PROFILE_KEY, { altura:null });
+// Qué criterios cuentan para que un día sea "completo" (configurable desde Datos).
+const GOALS_DEFAULT = { comidas:true, agua:true, descanso:true, creatina:true, proteina:true };
+let GOALS = Object.assign({}, GOALS_DEFAULT, loadJSON(GOALS_KEY, {}));
 let current = todayKey();
 let deferredPrompt = null;
 
@@ -67,6 +71,7 @@ const MO_LONG = ['enero','febrero','marzo','abril','mayo','junio','julio','agost
 /* ---------- Persistencia ---------- */
 function saveData(){ localStorage.setItem(STORE_KEY, JSON.stringify(DATA)); }
 function saveProfile(){ localStorage.setItem(PROFILE_KEY, JSON.stringify(PROFILE)); }
+function saveGoals(){ localStorage.setItem(GOALS_KEY, JSON.stringify(GOALS)); }
 
 function blankDay(){
   const meals = {}; MEALS.forEach(m => meals[m.key] = []);
@@ -577,18 +582,42 @@ const LEVELCOL = [
 ];
 const FIRE_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s4 3 4 7a4 4 0 01-8 0c0-1 .3-1.7.7-2.4C9 9 9 10.5 10 11c-.4-2 .8-6 2-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.5 13.5A5.5 5.5 0 1017.5 14c0-2-1-3.5-1-3.5-.3 1.6-1.5 2.2-1.5 2.2.3-2.4-1-4.7-2.5-5.7 0 2-1.2 3-2.3 4.2-.9 1-3.7 1-3.7 1.3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
-// Puntaje de un día. complete = 4 comidas + agua + (entreno o descanso).
-// frac (0..1) da el tono del heatmap: comidas pesan la mitad; agua y descanso/entreno un cuarto c/u.
+// Metadatos de los criterios configurables de "día completo".
+const GOAL_DEFS = [
+  { key:'comidas',  label:'Las 4 comidas',      desc:'Desayuno, almuerzo, merienda y cena', note:'las 4 comidas' },
+  { key:'agua',     label:'Agua',               desc:'Al menos un vaso',                    note:'agua' },
+  { key:'descanso', label:'Entreno o descanso', desc:'Un entrenamiento o las horas de sueño', note:'un entreno o descanso' },
+  { key:'creatina', label:'Creatina',           desc:'Dosis del día',                       note:'creatina' },
+  { key:'proteina', label:'Proteína',           desc:'Dosis del día',                       note:'proteína' },
+];
+// Texto legible de los criterios activos, para la nota del heatmap.
+function goalsNoteText(){
+  const on = GOAL_DEFS.filter(g => GOALS[g.key]).map(g => g.note);
+  if(!on.length) return 'cualquier registro del día';
+  if(on.length === 1) return on[0];
+  return on.slice(0,-1).join(', ') + ' y ' + on[on.length-1];
+}
+
+// Puntaje de un día según los criterios ACTIVOS en GOALS.
+// complete = cumple todos los criterios tildados; frac (0..1) = promedio de cumplimiento (para el color).
 function dayScore(r){
   if(!r) return { level:0, complete:false, has:false, frac:0 };
+  const has = dayHasData(r);
   const meals  = MEALS.filter(m => ((r.meals && r.meals[m.key]) || []).length > 0).length;
   const aguaOK = !!(r.drinks && r.drinks.agua > 0);
   const restOK = (Array.isArray(r.training) && r.training.length > 0) || (r.sueno != null);
-  const suppOK = !!(r.supp && SUPPS.every(s => r.supp[s.key] > 0)); // creatina Y proteína
-  const has = dayHasData(r);
-  const complete = meals === 4 && aguaOK && restOK && suppOK;
-  // 4 pilares: comidas pesan un poco más (0.4); agua, descanso/entreno y suplementos 0.2 c/u.
-  const frac = (meals/4)*0.4 + (aguaOK?0.2:0) + (restOK?0.2:0) + (suppOK?0.2:0);
+  const creOK  = !!(r.supp && r.supp.creatina > 0);
+  const proOK  = !!(r.supp && r.supp.proteina > 0);
+  const parts = [];
+  if(GOALS.comidas)  parts.push(meals/4);          // crédito parcial por comida
+  if(GOALS.agua)     parts.push(aguaOK ? 1 : 0);
+  if(GOALS.descanso) parts.push(restOK ? 1 : 0);
+  if(GOALS.creatina) parts.push(creOK ? 1 : 0);
+  if(GOALS.proteina) parts.push(proOK ? 1 : 0);
+  let complete, frac;
+  if(!parts.length){ complete = has; frac = has ? 1 : 0; }             // sin criterios: alcanza con cargar algo
+  else { complete = parts.every(p => p >= 1); frac = parts.reduce((a,b)=>a+b,0)/parts.length; }
+  complete = complete && has;
   let level;
   if(complete) level = 4;
   else if(!has) level = 0;
@@ -702,7 +731,7 @@ function renderResumen(){
       <div class="cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
       <div class="cal-grid">${cells}</div>
       <div class="cal-legend"><span>menos</span><i style="background:var(--surface-2)"></i><i style="background:${LEVELCOL[2]}"></i><i style="background:${LEVELCOL[3]}"></i><i style="background:var(--primary)"></i><span>más</span></div>
-      <div class="cal-note"><b>${monthComplete} día${monthComplete===1?'':'s'}</b> completo${monthComplete===1?'':'s'}. Un día se completa con las <b>4 comidas</b>, <b>agua</b>, un <b>entreno o descanso</b> y los <b>suplementos</b> (creatina y proteína). Tocá un día para abrirlo.</div>
+      <div class="cal-note"><b>${monthComplete} día${monthComplete===1?'':'s'}</b> completo${monthComplete===1?'':'s'}. Un día se completa con ${goalsNoteText()}. Tocá un día para abrirlo. <span style="color:var(--faint)">Configurable en Datos.</span></div>
     </div>
 
     <div class="section-title">Constancia por día de la semana</div>
@@ -713,6 +742,20 @@ function renderResumen(){
   const p = wrap.querySelector('#calPrev'); if(p) p.onclick = () => { resumenMonth = shiftMonth(resumenMonth, -1); renderResumen(); };
   const nx = wrap.querySelector('#calNext'); if(nx) nx.onclick = () => { if(resumenMonth < curMonth){ resumenMonth = shiftMonth(resumenMonth, 1); renderResumen(); } };
   wrap.querySelectorAll('[data-goto]').forEach(c => c.onclick = () => { current = c.dataset.goto; switchView('comida'); render(); const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0; });
+}
+
+// Interruptores de "día completo" en la pestaña Datos.
+function renderGoals(){
+  const wrap = document.getElementById('goalsWrap');
+  if(!wrap) return;
+  wrap.innerHTML = GOAL_DEFS.map(g => `
+    <div class="goal-row">
+      <div class="gtext"><div class="gl">${g.label}</div><div class="gs">${g.desc}</div></div>
+      <label class="switch"><input type="checkbox" data-goal="${g.key}" ${GOALS[g.key]?'checked':''}><span class="track"></span><span class="knob"></span></label>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-goal]').forEach(inp => inp.onchange = () => {
+    GOALS[inp.dataset.goal] = inp.checked; saveGoals(); haptic();
+  });
 }
 
 /* ============================================================
@@ -772,7 +815,7 @@ function exportCsvAll(){
 }
 function exportBackup(){
   pruneEmpty();
-  const payload = { app:'Habitos', version:2, exportedAt:new Date().toISOString(), profile:PROFILE, data:DATA };
+  const payload = { app:'Habitos', version:2, exportedAt:new Date().toISOString(), profile:PROFILE, goals:GOALS, data:DATA };
   download(`habitos_backup_${todayKey()}.json`, JSON.stringify(payload,null,2), 'application/json');
   toast('Backup descargado');
 }
@@ -785,7 +828,8 @@ function doRestore(file){
       if(typeof incoming!=='object' || Array.isArray(incoming)) throw 0;
       DATA = incoming;
       if(parsed.profile) PROFILE = parsed.profile;
-      pruneEmpty(); saveData(); saveProfile();
+      if(parsed.goals) GOALS = Object.assign({}, GOALS_DEFAULT, parsed.goals);
+      pruneEmpty(); saveData(); saveProfile(); saveGoals();
       current = todayKey(); render(); renderCuerpo(); fillMonths();
       toast('Datos restaurados');
     }catch{ toast('Archivo inválido'); }
@@ -811,7 +855,7 @@ function switchView(name){
   document.getElementById('dateBar').style.display = DAY_VIEWS.includes(name) ? '' : 'none';
   if(name==='cuerpo') renderCuerpo();
   if(name==='resumen') renderResumen();
-  if(name==='datos') fillMonths();
+  if(name==='datos'){ fillMonths(); renderGoals(); }
   const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0;
 }
 
@@ -888,7 +932,7 @@ document.getElementById('restoreInput').onchange = e => {
 };
 document.getElementById('btnReset').onclick = () => {
   openConfirm({ title:'Borrar todos los datos', desc:'Se elimina todo el historial de este dispositivo. Esta acción no se puede deshacer.', confirm:'Borrar todo', danger:true,
-    onConfirm:()=>{ DATA={}; PROFILE={altura:null}; saveData(); saveProfile(); current=todayKey(); render(); renderCuerpo(); fillMonths(); toast('Datos borrados'); } });
+    onConfirm:()=>{ DATA={}; PROFILE={altura:null}; GOALS=Object.assign({},GOALS_DEFAULT); saveData(); saveProfile(); saveGoals(); current=todayKey(); render(); renderCuerpo(); fillMonths(); toast('Datos borrados'); } });
 };
 
 document.querySelector('main').addEventListener('scroll', (e) => document.getElementById('appbar').classList.toggle('scrolled', e.target.scrollTop>4), { passive:true });

@@ -34,11 +34,12 @@ Una app de seguimiento de hábitos pensada para el uso diario desde el celular. 
 ### 📈 Resumen
 - **Racha** de días completos consecutivos (+ tu mejor racha histórica).
 - **Métricas** del mes: comidas por día, agua por día, entrenos y minutos, días con alcohol.
-- **Heatmap de adherencia**: calendario **navegable** (flechas ‹ ›) con cada día coloreado según qué tan completo lo cargaste. Un día cuenta como **completo** con las 4 comidas + agua + (entreno o descanso) + suplementos (creatina y proteína). Tocás un día para abrirlo.
+- **Heatmap de adherencia**: calendario **navegable** (flechas ‹ ›) con cada día coloreado según qué tan completo lo cargaste. Un día cuenta como **completo** cumpliendo los criterios que actives en Datos (4 comidas, agua, entreno o descanso, creatina, proteína). Tocás un día para abrirlo.
 - **Constancia por día de la semana** (barras) y **evolución del peso** del mes.
 - Todo se calcula sobre los datos existentes: no agrega ni cambia nada del modelo de datos.
 
 ### 💾 Datos
+- **Día completo configurable**: interruptores para elegir qué criterios (4 comidas, agua, entreno/descanso, creatina, proteína) cuentan para marcar un día como completo en el Resumen.
 - **Exportar CSV del mes** o **CSV completo** (una fila por registro, listo para tabla dinámica).
 - **Backup JSON** de todos los datos y **restaurar** desde archivo (por si cambiás de celular).
 - **Instalar** la PWA en la pantalla de inicio (con guía específica para iPhone).
