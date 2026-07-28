@@ -13,20 +13,22 @@ const MEALS = [
   { key:'cena',     label:'Cena',     color:'#3B82F6' },
 ];
 const DRINKS = [
-  { key:'cerveza', label:'Cerveza', emoji:'🍺', unit:'unidad', alcohol:true,  color:'#D97706' },
-  { key:'vino',    label:'Vino',    emoji:'🍷', unit:'copa',   alcohol:true,  color:'#9F1239' },
-  { key:'fernet',  label:'Fernet',  emoji:'🥃', unit:'vaso',   alcohol:true,  color:'#7C3B12' },
-  { key:'gaseosa', label:'Gaseosa', emoji:'🥤', unit:'vaso',   alcohol:false, color:'#0891B2' },
-  { key:'agua',    label:'Agua',    emoji:'💧', unit:'vaso',   alcohol:false, color:'#38BDF8' },
+  { key:'cerveza', label:'Cerveza', unit:'unidad', alcohol:true,  color:'#D97706', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 8h8v10a2 2 0 01-2 2H9a2 2 0 01-2-2V8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15 10h2a2 2 0 012 2v2a2 2 0 01-2 2h-2" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 11h8" stroke="currentColor" stroke-width="1.4"/></svg>' },
+  { key:'vino',    label:'Vino',    unit:'copa',   alcohol:true,  color:'#9F1239', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 4h10l-1 5a4 4 0 01-8 0L7 4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 14v5M9 20h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' },
+  { key:'fernet',  label:'Fernet',  unit:'vaso',   alcohol:true,  color:'#7C3B12', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 5h10l-1.2 13.5a1.5 1.5 0 01-1.5 1.4H9.7a1.5 1.5 0 01-1.5-1.4L7 5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7.8 12.5h8.4" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { key:'gaseosa', label:'Gaseosa', unit:'vaso',   alcohol:false, color:'#0891B2', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M10 3h4v2.5l1.4 2.3a4 4 0 01.6 2.1V19a2 2 0 01-2 2H10a2 2 0 01-2-2V9.9a4 4 0 01.6-2.1L10 5.5V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 13h8" stroke="currentColor" stroke-width="1.5"/></svg>' },
+  { key:'agua',    label:'Agua',    unit:'vaso',   alcohol:false, color:'#38BDF8', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5s6 6 6 10a6 6 0 11-12 0c0-4 6-10 6-10z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
 ];
+// Ícono genérico para bebidas "otras" cargadas a mano.
+const OTHER_DRINK_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M7 6h10l-1.2 13a1.5 1.5 0 01-1.5 1.4H9.7A1.5 1.5 0 018.2 19L7 6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
 const SUPPS = [
   { key:'creatina', label:'Creatina', unit:'g', step:1, color:'#6366F1' },
   { key:'proteina', label:'Proteína', unit:'g', step:5, color:'#EC4899' },
 ];
 const TRAIN_TYPES = [
-  { key:'futbol',   label:'Fútbol',   emoji:'⚽', color:'#16A34A' },
-  { key:'gimnasio', label:'Gimnasio', emoji:'🏋️', color:'#0D9488' },
-  { key:'otro',     label:'Otro',     emoji:'🤸', color:'#6366F1' },
+  { key:'futbol',   label:'Fútbol',   color:'#16A34A', icon:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 8l3.2 2.3-1.2 3.7H10l-1.2-3.7L12 8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 3.5V8M20 10.5l-4.8 2.5M15.8 20l-1.8-4.7M8.2 20l1.8-4.7M4 10.5l4.8 2.5" stroke="currentColor" stroke-width="1.3"/></svg>' },
+  { key:'gimnasio', label:'Gimnasio', color:'#0D9488', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M6.5 8v8M17.5 8v8M4 10v4M20 10v4M6.5 12h11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>' },
+  { key:'otro',     label:'Otro',     color:'#6366F1', icon:'<svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3.5l2-6 3.2 12L14 8l1.5 4H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
 ];
 const INTENS = ['Suave','Media','Alta'];
 
@@ -269,14 +271,14 @@ function renderDrinks(){
     const n = r.drinks[d.key];
     return `<div class="chip ${n>0?'on':''}" style="--c:${d.color}" data-drink="${d.key}">
         <button class="minus" data-drink-minus="${d.key}" aria-label="Restar">−</button>
-        <div class="emoji">${d.emoji}</div><div class="name">${d.label}</div>
+        <div class="dico">${d.icon}</div><div class="name">${d.label}</div>
         <div class="n">${n}</div><div class="unit">${n===1?d.unit:pluralUnit(d.unit)}</div>
       </div>`;
   }).join('');
   const otros = Object.entries(r.otros).map(([name,n]) => `
       <div class="chip ${n>0?'on':''}" style="--c:#64748B" data-other="${esc(name)}">
         <button class="minus" data-other-minus="${esc(name)}" aria-label="Restar">−</button>
-        <div class="emoji">🥤</div><div class="name">${esc(name)}</div>
+        <div class="dico">${OTHER_DRINK_ICON}</div><div class="name">${esc(name)}</div>
         <div class="n">${n}</div><div class="unit">${n===1?'unidad':'unidades'}</div>
       </div>`).join('');
   el.innerHTML = fixed + otros + `<div class="chip add-drink" id="addDrink"><div class="plus">+</div><div class="t">Otro</div></div>`;
@@ -341,7 +343,7 @@ function renderTraining(){
       if(t.intensidad) badges.push(`<span class="badge">${esc(t.intensidad)}</span>`);
       return `
         <div class="train-item">
-          <div class="tico" style="background:${cfg.color}22">${cfg.emoji}</div>
+          <div class="tico" style="background:${cfg.color}22; color:${cfg.color}">${cfg.icon}</div>
           <div class="tbody">
             <div class="trow"><span class="tname">${esc(name)}</span>${t.duracion?`<span class="tmin">· ${t.duracion} min</span>`:''}</div>
             <div class="trow" style="margin-top:5px; gap:6px">${badges.join('')}</div>
@@ -391,7 +393,7 @@ function openTrainingModal(){
     m.innerHTML = `
       <h3>Nuevo entrenamiento</h3>
       <div class="field"><label>Tipo</label>
-        <div class="seg" id="segTipo">${TRAIN_TYPES.map(t=>`<button data-t="${t.key}" class="${state.tipo===t.key?'on':''}"><span class="e">${t.emoji}</span>${t.label}</button>`).join('')}</div>
+        <div class="seg" id="segTipo">${TRAIN_TYPES.map(t=>`<button data-t="${t.key}" class="${state.tipo===t.key?'on':''}"><span class="e">${t.icon}</span>${t.label}</button>`).join('')}</div>
       </div>
       ${state.tipo==='otro'?`<div class="field"><label>¿Qué hiciste?</label><input id="fNombre" placeholder="Ej: natación, running, tenis…" value="${esc(state.nombre)}" autocomplete="off"></div>`:''}
       <div class="field"><label>Duración (minutos)</label><input id="fDur" type="number" inputmode="numeric" min="0" step="5" placeholder="Ej: 60" value="${state.duracion}"></div>
@@ -553,12 +555,12 @@ function renderHistory(){
     const suppOn = SUPPS.some(s=>r.supp[s.key]>0);
     const minutos = r.training.reduce((s,t)=>s+(+t.duracion||0),0);
     const tags = [`<span class="tag">${mealsDone}/4 comidas</span>`];
-    if(alcohol>0) tags.push(`<span class="tag al">🍷 ${alcohol}</span>`);
-    if(r.drinks.agua>0) tags.push(`<span class="tag">💧 ${r.drinks.agua}</span>`);
-    if(suppOn) tags.push(`<span class="tag">💪 suple</span>`);
-    if(r.training.length) tags.push(`<span class="tag tr">🏋️ ${r.training.length}${minutos?` · ${minutos}′`:''}</span>`);
-    if(r.peso!=null) tags.push(`<span class="tag">⚖️ ${nf(r.peso)} kg</span>`);
-    if(r.sueno!=null) tags.push(`<span class="tag">😴 ${nf(r.sueno)} h</span>`);
+    if(alcohol>0) tags.push(`<span class="tag al">${alcohol} alcohol</span>`);
+    if(r.drinks.agua>0) tags.push(`<span class="tag">${r.drinks.agua} agua</span>`);
+    if(suppOn) tags.push(`<span class="tag">suple</span>`);
+    if(r.training.length) tags.push(`<span class="tag tr">${r.training.length} entreno${r.training.length>1?'s':''}${minutos?` · ${minutos}′`:''}</span>`);
+    if(r.peso!=null) tags.push(`<span class="tag">${nf(r.peso)} kg</span>`);
+    if(r.sueno!=null) tags.push(`<span class="tag">${nf(r.sueno)} h sueño</span>`);
     return `
       <button class="hist-item" data-goto="${k}">
         <div class="date"><div class="day">${d.getDate()}</div><div class="mon">${MO[d.getMonth()]}</div></div>
@@ -574,28 +576,31 @@ function renderHistory(){
    Columnas: Fecha;Tipo;Categoria;Detalle;Cantidad;Unidad
    ============================================================ */
 function buildCsv(keys){
-  const rows = [['Fecha','Tipo','Categoria','Detalle','Cantidad','Unidad']];
+  const rows = [['FechaISO','Fecha','DiaSemana','Tipo','Categoria','Detalle','Cantidad','Unidad']];
   keys.sort().forEach(k => {
     const r = normalize(DATA[k]); if(!r) return;
-    const fecha = k.split('-').reverse().join('/'); // DD/MM/YYYY
-    MEALS.forEach(m => r.meals[m.key].forEach(it => rows.push([fecha,'Comida',m.label,it,'',''])));
-    DRINKS.forEach(d => { if(r.drinks[d.key]>0) rows.push([fecha, d.alcohol?'Bebida alcohólica':'Bebida', d.label,'',r.drinks[d.key],d.unit]); });
-    Object.entries(r.otros).forEach(([name,n]) => { if(n>0) rows.push([fecha,'Bebida',name,'',n,'unidad']); });
-    SUPPS.forEach(s => { if(r.supp[s.key]>0) rows.push([fecha,'Suplemento',s.label,'',nf(r.supp[s.key]),s.unit]); });
+    const iso = k;                                  // YYYY-MM-DD: ordena y parsea sin ambigüedad
+    const fecha = k.split('-').reverse().join('/');  // DD/MM/YYYY: legible en Excel
+    const dow = WD[keyToDate(k).getDay()];           // día de la semana (patrones fin de semana, etc.)
+    const push = (tipo,cat,det,cant,uni) => rows.push([iso,fecha,dow,tipo,cat,det,cant,uni]);
+    MEALS.forEach(m => r.meals[m.key].forEach(it => push('Comida',m.label,it,'','')));
+    DRINKS.forEach(d => { if(r.drinks[d.key]>0) push(d.alcohol?'Bebida alcohólica':'Bebida', d.label,'',r.drinks[d.key],d.unit); });
+    Object.entries(r.otros).forEach(([name,n]) => { if(n>0) push('Bebida',name,'',n,'unidad'); });
+    SUPPS.forEach(s => { if(r.supp[s.key]>0) push('Suplemento',s.label,'',nf(r.supp[s.key]),s.unit); });
     r.training.forEach(t => {
       const cfg = TRAIN_TYPES.find(x=>x.key===t.tipo)||TRAIN_TYPES[2];
       const cat = t.tipo==='otro' ? (t.nombre||'Otro') : cfg.label;
       const det = [t.intensidad, t.nota].filter(Boolean).join(' — ');
-      rows.push([fecha,'Entrenamiento',cat,det,(t.duracion||''),t.duracion?'min':'']);
+      push('Entrenamiento',cat,det,(t.duracion||''),t.duracion?'min':'');
     });
     if(r.peso!=null){
-      rows.push([fecha,'Cuerpo','Peso','',nf(r.peso),'kg']);
+      push('Cuerpo','Peso','',nf(r.peso),'kg');
       const v = imcOf(r.peso);
-      if(v) rows.push([fecha,'Cuerpo','IMC','',nf(v.toFixed(1)),'']);
-      if(PROFILE.altura) rows.push([fecha,'Cuerpo','Altura','',PROFILE.altura,'cm']);
-      if(r.cintura!=null) rows.push([fecha,'Cuerpo','Cintura','',nf(r.cintura),'cm']);
+      if(v) push('Cuerpo','IMC','',nf(v.toFixed(1)),'');
+      if(PROFILE.altura) push('Cuerpo','Altura','',PROFILE.altura,'cm');
+      if(r.cintura!=null) push('Cuerpo','Cintura','',nf(r.cintura),'cm');
     }
-    if(r.sueno!=null) rows.push([fecha,'Descanso','Sueño','',nf(r.sueno),'h']);
+    if(r.sueno!=null) push('Descanso','Sueño','',nf(r.sueno),'h');
   });
   const csv = rows.map(row => row.map(c => { c=String(c); return /[;"\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c; }).join(';')).join('\r\n');
   return '\uFEFF' + csv;
@@ -690,8 +695,19 @@ function openConfirm({title, desc, confirm, danger, onConfirm}){
   bg.onclick=e=>{ if(e.target===bg) close(); };
 }
 
-let toastTimer;
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2200); }
+const TK_OK  = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const TK_BAD = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 7v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="currentColor"/></svg>';
+function toast(msg){
+  const wrap = document.getElementById('toasts');
+  const bad = /inválid|error|no hay|no se pudo|falló|todavía no/i.test(msg);
+  const card = document.createElement('div');
+  card.className = 'toastcard' + (bad ? ' bad' : '');
+  card.innerHTML = `<span class="tk">${bad?TK_BAD:TK_OK}</span><span>${esc(msg)}</span>`;
+  wrap.appendChild(card);
+  requestAnimationFrame(() => card.classList.add('show'));
+  setTimeout(() => { card.classList.remove('show'); setTimeout(() => card.remove(), 300); }, 2200);
+  while(wrap.children.length > 4) wrap.removeChild(wrap.firstChild); // que la pila no crezca infinito
+}
 function haptic(){ if(navigator.vibrate) navigator.vibrate(8); }
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -745,16 +761,24 @@ document.getElementById('btnInstall').onclick = async () => { if(!deferredPrompt
   if(isIOS&&!standalone) document.getElementById('installHint').innerHTML='En iPhone: tocá <b>Compartir</b> ⬆️ y luego <b>Agregar a inicio</b>.';
 })();
 
-/* ---------- Service worker + auto-actualización ----------
-   Al subir una versión nueva a GitHub Pages, el SW nuevo se instala,
-   toma control y la app se recarga sola. 'hadController' evita una recarga
-   innecesaria en la primera instalación. */
+/* ---------- Service worker + cartel de actualización ---------- */
+/* ---------- Cartel de actualización ----------
+   Cuando el service worker nuevo toma control, en vez de recargar de golpe
+   (que interrumpe si estás cargando algo), mostramos un cartel para que
+   actualices cuando quieras. */
+function showUpdateBanner(){
+  if(document.getElementById('updateBanner')) return; // evitar duplicados
+  const b = document.createElement('div');
+  b.id = 'updateBanner'; b.className = 'update-banner';
+  b.innerHTML = `<div class="ub-txt"><b>Nueva versión disponible</b><span>Actualizá para ver las mejoras</span></div><button id="updateBtn">Actualizar</button>`;
+  document.body.appendChild(b);
+  requestAnimationFrame(() => b.classList.add('show'));
+  b.querySelector('#updateBtn').onclick = () => { b.querySelector('#updateBtn').textContent = 'Actualizando…'; window.location.reload(); };
+}
 if('serviceWorker' in navigator){
   const hadController = !!navigator.serviceWorker.controller;
-  let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(refreshing) return; refreshing = true;
-    if(hadController) window.location.reload();
+    if(hadController) showUpdateBanner(); // hubo control previo = es actualización, no primera instalación
   });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {

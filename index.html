@@ -168,7 +168,8 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .chip{position:relative; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; padding:14px 10px 12px; text-align:center; box-shadow:var(--shadow); transition:transform .1s ease, border-color .15s ease; user-select:none}
 .chip:active{transform:scale(.95)}
 .chip.on{border-color:var(--c)}
-.chip .emoji{font-size:26px; line-height:1}
+.chip .dico{color:var(--c); line-height:0}
+.chip .dico svg{width:27px; height:27px}
 .chip .name{font-size:12.5px; font-weight:680; margin-top:5px; color:var(--muted)}
 .chip .n{font-size:24px; font-weight:830; letter-spacing:-.02em; margin-top:3px; color:var(--text)}
 .chip.on .n{color:var(--c)}
@@ -193,7 +194,8 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 
 /* ============ TRAINING ============ */
 .train-item{display:flex; align-items:flex-start; gap:12px; padding:14px 16px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:10px}
-.train-item .tico{width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px; flex:none}
+.train-item .tico{width:42px; height:42px; border-radius:12px; display:grid; place-items:center; flex:none}
+.train-item .tico svg{width:23px; height:23px}
 .train-item .tbody{flex:1; min-width:0}
 .train-item .trow{display:flex; align-items:center; gap:8px}
 .train-item .tname{font-weight:730; font-size:15.5px; letter-spacing:-.01em}
@@ -288,7 +290,8 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .field label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin:0 2px 7px; text-transform:uppercase; letter-spacing:.04em}
 .seg{display:flex; gap:8px}
 .seg button{flex:1; padding:11px 6px; border-radius:12px; background:var(--surface-2); border:1.5px solid var(--border); color:var(--muted); font-weight:680; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:3px}
-.seg button .e{font-size:19px}
+.seg button .e{line-height:0}
+.seg button .e svg{width:22px; height:22px}
 .seg button.on{border-color:var(--primary); color:var(--text); background:var(--primary-tint)}
 .modal-actions{display:flex; gap:10px; margin-top:4px}
 .modal-actions button{flex:1; padding:13px; border-radius:13px; font-size:15px; font-weight:700}
@@ -297,8 +300,24 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .btn-danger{background:#DC2626; color:#fff}
 
 /* ============ TOAST ============ */
-.toast{position:fixed; left:50%; transform:translateX(-50%) translateY(120px); bottom:calc(104px + var(--safe-bottom)); z-index:60; background:var(--text); color:var(--bg); padding:11px 18px; border-radius:999px; font-size:13.5px; font-weight:650; box-shadow:0 8px 24px rgba(0,0,0,.3); opacity:0; pointer-events:none; transition:transform .3s cubic-bezier(.2,.9,.3,1.2), opacity .25s ease; max-width:90%; text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0); opacity:1}
+/* ============ TOASTS (pila, con la paleta de la app) ============ */
+.toasts{position:fixed; left:0; right:0; bottom:calc(96px + var(--safe-bottom)); z-index:60; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; padding:0 16px}
+.toastcard{display:flex; align-items:center; gap:9px; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px 15px 10px 12px; border-radius:14px; box-shadow:0 8px 24px rgba(16,40,30,.16); font-size:14px; font-weight:650; max-width:100%; transform:translateY(12px) scale(.96); opacity:0; transition:transform .28s cubic-bezier(.2,.9,.3,1.2), opacity .28s ease}
+[data-theme="dark"] .toastcard{box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toastcard.show{transform:none; opacity:1}
+.toastcard .tk{flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:var(--primary-tint); color:var(--primary-strong)}
+.toastcard .tk svg{width:14px; height:14px}
+.toastcard.bad .tk{background:#FEF3E2; color:#B45309}
+[data-theme="dark"] .toastcard.bad .tk{background:#3A2A12; color:#F0B460}
+
+/* ============ CARTEL DE ACTUALIZACIÓN ============ */
+.update-banner{position:fixed; left:12px; right:12px; top:calc(var(--safe-top) + 10px); z-index:70; display:flex; align-items:center; gap:12px; background:var(--primary); color:#fff; padding:12px 12px 12px 15px; border-radius:16px; box-shadow:0 10px 30px rgba(16,40,30,.3); transform:translateY(-160%); opacity:0; transition:transform .38s cubic-bezier(.2,.9,.3,1.2), opacity .3s ease; max-width:560px; margin:0 auto}
+.update-banner.show{transform:translateY(0); opacity:1}
+.update-banner .ub-txt{flex:1; display:flex; flex-direction:column; line-height:1.25}
+.update-banner .ub-txt b{font-size:14.5px; font-weight:780}
+.update-banner .ub-txt span{font-size:12px; opacity:.92}
+.update-banner button{flex:none; background:rgba(255,255,255,.24); color:#fff; font-weight:750; font-size:14px; padding:9px 16px; border-radius:11px; transition:background .12s ease}
+.update-banner button:active{background:rgba(255,255,255,.36)}
 .hidden{display:none !important}
 </style>
 </head>
@@ -409,7 +428,7 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 </nav>
 
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
-<div class="toast" id="toast"></div>
+<div class="toasts" id="toasts"></div>
 
 <script src="app.js"></script>
 </body>

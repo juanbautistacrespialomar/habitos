@@ -55,7 +55,9 @@ Separador `;` y BOM UTF-8, para que **Excel en es-AR** lo abra en columnas sin r
 
 | Columna | Descripción |
 |---|---|
-| `Fecha` | `DD/MM/YYYY` |
+| `FechaISO` | `YYYY-MM-DD` (ordena y se parsea sin ambigüedad) |
+| `Fecha` | `DD/MM/YYYY` (legible en Excel) |
+| `DiaSemana` | lunes, martes… (para patrones por día) |
 | `Tipo` | Comida · Bebida · Bebida alcohólica · Suplemento · Entrenamiento · Cuerpo · Descanso |
 | `Categoria` | Ej: Almuerzo, Cerveza, Creatina, Fútbol, Peso, IMC, Sueño |
 | `Detalle` | Texto libre (alimento, nota del entreno, etc.) |
