@@ -1,7 +1,7 @@
 /* Hábitos — Service Worker
-   Subí el número de versión cada vez que cambies index.html u otros assets
+   Subí el número de versión cada vez que cambies index.html/app.js u otros assets
    para forzar la actualización del cache en los dispositivos ya instalados. */
-const CACHE = 'habitos-v1';
+const CACHE = 'habitos-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -10,7 +10,9 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './favicon.png',
+  './mark.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -27,7 +29,6 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Cache-first para los assets propios; la app es 100% offline.
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
