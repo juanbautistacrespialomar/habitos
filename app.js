@@ -576,7 +576,7 @@ const DAY_VIEWS = ['comida','entreno'];
 function switchView(name){
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
-  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.view===name));
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view===name));
   document.getElementById('dateBar').style.display = DAY_VIEWS.includes(name) ? '' : 'none';
   if(name==='cuerpo') renderCuerpo();
   if(name==='hist') renderHistory();
@@ -630,7 +630,7 @@ document.getElementById('prevDay').onclick = () => { current=shiftDay(current,-1
 document.getElementById('nextDay').onclick = () => { current=shiftDay(current,+1); render(); };
 document.getElementById('goToday').onclick = () => { current=todayKey(); render(); };
 document.getElementById('themeBtn').onclick = () => applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
-document.querySelectorAll('.nav button').forEach(b => b.onclick = () => switchView(b.dataset.view));
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => switchView(b.dataset.view));
 
 document.getElementById('addTrain').onclick = openTrainingModal;
 document.getElementById('addWeight').onclick = openWeightModal;
@@ -660,8 +660,24 @@ document.getElementById('btnInstall').onclick = async () => { if(!deferredPrompt
   if(isIOS&&!standalone) document.getElementById('installHint').innerHTML='En iPhone: tocá <b>Compartir</b> ⬆️ y luego <b>Agregar a inicio</b>.';
 })();
 
-/* ---------- Service worker ---------- */
-if('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+/* ---------- Service worker + auto-actualización ----------
+   Al subir una versión nueva a GitHub Pages, el SW nuevo se instala,
+   toma control y la app se recarga sola. 'hadController' evita una recarga
+   innecesaria en la primera instalación. */
+if('serviceWorker' in navigator){
+  const hadController = !!navigator.serviceWorker.controller;
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(refreshing) return; refreshing = true;
+    if(hadController) window.location.reload();
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update();                                   // chequea versión nueva al abrir
+      setInterval(() => reg.update(), 60 * 60 * 1000); // y cada hora si queda abierta
+    }).catch(()=>{});
+  });
+}
 
 /* ============================================================
    ARRANQUE
