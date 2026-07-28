@@ -528,9 +528,10 @@ function openWeightModal(){
    HISTORIAL
    ============================================================ */
 function renderHistory(){
+  const list = document.getElementById('histList');
+  if(!list) return; // la pestaña Historial fue removida
   pruneEmpty();
   const keys = Object.keys(DATA).sort().reverse();
-  const list = document.getElementById('histList');
   if(!keys.length){ list.innerHTML = `<div class="empty center">Todavía no cargaste ningún día. Empezá desde <b>Comida</b> o <b>Entreno</b>.</div>`; return; }
   list.innerHTML = keys.map(k => {
     const r = normalize(DATA[k]); const d = keyToDate(k);
@@ -559,7 +560,14 @@ function renderHistory(){
    RESUMEN (métricas + adherencia)
    Día completo = 4 comidas + agua + (entreno o descanso cargado)
    ============================================================ */
-let resumenPeriod = 'mes';
+let resumenMonth = null; // 'YYYY-MM' visible en el heatmap; se inicializa al mes actual
+function shiftMonth(ym, delta){
+  let [y,m] = ym.split('-').map(Number); m += delta;
+  while(m < 1){ m += 12; y--; } while(m > 12){ m -= 12; y++; }
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+const CHEV_L = '<svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHEV_R = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const LEVELCOL = [
   'var(--surface-2)',
   'color-mix(in srgb, var(--primary) 28%, var(--surface-2))',
@@ -576,14 +584,16 @@ function dayScore(r){
   const meals  = MEALS.filter(m => ((r.meals && r.meals[m.key]) || []).length > 0).length;
   const aguaOK = !!(r.drinks && r.drinks.agua > 0);
   const restOK = (Array.isArray(r.training) && r.training.length > 0) || (r.sueno != null);
+  const suppOK = !!(r.supp && SUPPS.every(s => r.supp[s.key] > 0)); // creatina Y proteína
   const has = dayHasData(r);
-  const complete = meals === 4 && aguaOK && restOK;
-  const frac = (meals/4)*0.5 + (aguaOK?0.25:0) + (restOK?0.25:0);
+  const complete = meals === 4 && aguaOK && restOK && suppOK;
+  // 4 pilares: comidas pesan un poco más (0.4); agua, descanso/entreno y suplementos 0.2 c/u.
+  const frac = (meals/4)*0.4 + (aguaOK?0.2:0) + (restOK?0.2:0) + (suppOK?0.2:0);
   let level;
   if(complete) level = 4;
   else if(!has) level = 0;
-  else if(frac >= 0.7) level = 3;
-  else if(frac >= 0.4) level = 2;
+  else if(frac >= 0.75) level = 3;
+  else if(frac >= 0.45) level = 2;
   else level = 1;
   return { level, complete, has, frac };
 }
@@ -624,17 +634,16 @@ function renderResumen(){
     wrap.innerHTML = `<div class="empty center">Todavía no hay datos para resumir. Cargá algunos días desde <b>Comida</b> o <b>Entreno</b> y volvé.</div>`;
     return;
   }
-  const monthYm = todayKey().slice(0,7);       // el resumen siempre mira el mes actual
-  const [Y,M] = monthYm.split('-').map(Number);
+  const curMonth = todayKey().slice(0,7);
+  if(!resumenMonth) resumenMonth = curMonth;
+  const [Y,M] = resumenMonth.split('-').map(Number);
   const pad = n => String(n).padStart(2,'0');
   const dim = new Date(Y, M, 0).getDate();
   const monthKeys = []; for(let d=1; d<=dim; d++) monthKeys.push(`${Y}-${pad(M)}-${pad(d)}`);
+  const nextDisabled = resumenMonth >= curMonth; // no navegar al futuro
 
-  const statKeys = resumenPeriod === 'semana'
-    ? Array.from({length:7}, (_,i)=>shiftDay(todayKey(), -i))
-    : monthKeys.slice();
-  const st  = periodStats(statKeys);
-  const cur = completeStreak(), best = bestStreak();
+  const st  = periodStats(monthKeys);              // métricas del mes visible
+  const cur = completeStreak(), best = bestStreak(); // racha: siempre global/actual
 
   // ---- heatmap del mes (lunes primero) ----
   const firstDow = (new Date(Y, M-1, 1).getDay()+6)%7;
@@ -663,18 +672,13 @@ function renderResumen(){
     const first = wins[0], last = wins[wins.length-1], delta = +(last.peso - first.peso).toFixed(1);
     pesoBlock = `
       <div class="section-title">Peso del mes</div>
-      <div class="card">${sparkline(wins)}
+      <div class="card res-pad">${sparkline(wins)}
         <div class="wk"><span>${keyToDate(first.key).getDate()} ${MO[keyToDate(first.key).getMonth()]} · <b>${nf(first.peso)} kg</b></span>
         <span><b>${nf(last.peso)} kg</b> <span style="color:var(--primary-strong)">${(delta>=0?'+':'')+nf(delta)}</span></span></div>
       </div>`;
   }
 
   wrap.innerHTML = `
-    <div class="period-seg" id="resPeriod">
-      <button data-p="semana" class="${resumenPeriod==='semana'?'on':''}">Semana</button>
-      <button data-p="mes" class="${resumenPeriod==='mes'?'on':''}">Mes</button>
-    </div>
-
     <div class="card streak">
       <div class="fire">${FIRE_ICON}</div>
       <div><div class="n">${cur}<small> día${cur===1?'':'s'}</small></div><div class="lb">Racha de días completos</div></div>
@@ -682,27 +686,32 @@ function renderResumen(){
     </div>
 
     <div class="res-stats">
-      <div class="res-stat"><div class="k">Comidas / día</div><div class="v">${nf(st.comidasProm.toFixed(1))}<small>/4</small></div><div class="sub">${resumenPeriod==='semana'?'últimos 7 días':'promedio del mes'}</div></div>
+      <div class="res-stat"><div class="k">Comidas / día</div><div class="v">${nf(st.comidasProm.toFixed(1))}<small>/4</small></div><div class="sub">promedio del mes</div></div>
       <div class="res-stat"><div class="k">Agua / día</div><div class="v">${nf(st.aguaProm.toFixed(1))}<small> v</small></div><div class="sub">promedio</div></div>
       <div class="res-stat"><div class="k">Entrenos</div><div class="v">${st.entrenos}</div><div class="sub">${st.minutos} min</div></div>
       <div class="res-stat"><div class="k">Días con alcohol</div><div class="v">${st.alcoholDays}</div><div class="sub">de ${st.dias} con registro</div></div>
     </div>
 
-    <div class="section-title">Adherencia · ${MO_LONG[M-1]} ${Y}</div>
-    <div class="card">
-      <div class="cal-head"><span class="m">${MO_LONG[M-1]}</span>
-        <span class="leg">menos <i style="background:var(--surface-2)"></i><i style="background:${LEVELCOL[2]}"></i><i style="background:${LEVELCOL[3]}"></i><i style="background:var(--primary)"></i> más</span></div>
+    <div class="section-title">Adherencia</div>
+    <div class="card res-pad">
+      <div class="cal-nav">
+        <button class="cal-arrow" id="calPrev" aria-label="Mes anterior">${CHEV_L}</button>
+        <span class="cal-m">${MO_LONG[M-1]} ${Y}</span>
+        <button class="cal-arrow" id="calNext" ${nextDisabled?'disabled':''} aria-label="Mes siguiente">${CHEV_R}</button>
+      </div>
       <div class="cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
       <div class="cal-grid">${cells}</div>
-      <div class="cal-note"><b>${monthComplete} día${monthComplete===1?'':'s'}</b> completo${monthComplete===1?'':'s'} este mes. Un día cuenta con las <b>4 comidas</b>, <b>agua</b> y un <b>entreno o descanso</b>. Tocá un día para abrirlo.</div>
+      <div class="cal-legend"><span>menos</span><i style="background:var(--surface-2)"></i><i style="background:${LEVELCOL[2]}"></i><i style="background:${LEVELCOL[3]}"></i><i style="background:var(--primary)"></i><span>más</span></div>
+      <div class="cal-note"><b>${monthComplete} día${monthComplete===1?'':'s'}</b> completo${monthComplete===1?'':'s'}. Un día se completa con las <b>4 comidas</b>, <b>agua</b>, un <b>entreno o descanso</b> y los <b>suplementos</b> (creatina y proteína). Tocá un día para abrirlo.</div>
     </div>
 
     <div class="section-title">Constancia por día de la semana</div>
-    <div class="card"><div class="wd-bars">${DIAS.map((d,i)=>`<div class="wd-col ${i>=5?'wknd':''}"><div class="wd-track"><div class="wd-fill" style="height:${Math.max(3,Math.round(wdAvg[i]*100))}%"></div></div><div class="bl">${d}</div></div>`).join('')}</div></div>
+    <div class="card res-pad"><div class="wd-bars">${DIAS.map((d,i)=>`<div class="wd-col ${i>=5?'wknd':''}"><div class="wd-track"><div class="wd-fill" style="height:${Math.max(3,Math.round(wdAvg[i]*100))}%"></div></div><div class="bl">${d}</div></div>`).join('')}</div></div>
 
     ${pesoBlock}`;
 
-  wrap.querySelectorAll('#resPeriod button').forEach(b => b.onclick = () => { resumenPeriod = b.dataset.p; renderResumen(); });
+  const p = wrap.querySelector('#calPrev'); if(p) p.onclick = () => { resumenMonth = shiftMonth(resumenMonth, -1); renderResumen(); };
+  const nx = wrap.querySelector('#calNext'); if(nx) nx.onclick = () => { if(resumenMonth < curMonth){ resumenMonth = shiftMonth(resumenMonth, 1); renderResumen(); } };
   wrap.querySelectorAll('[data-goto]').forEach(c => c.onclick = () => { current = c.dataset.goto; switchView('comida'); render(); const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0; });
 }
 
@@ -777,7 +786,7 @@ function doRestore(file){
       DATA = incoming;
       if(parsed.profile) PROFILE = parsed.profile;
       pruneEmpty(); saveData(); saveProfile();
-      current = todayKey(); render(); renderCuerpo(); renderHistory(); fillMonths();
+      current = todayKey(); render(); renderCuerpo(); fillMonths();
       toast('Datos restaurados');
     }catch{ toast('Archivo inválido'); }
   };
@@ -802,7 +811,6 @@ function switchView(name){
   document.getElementById('dateBar').style.display = DAY_VIEWS.includes(name) ? '' : 'none';
   if(name==='cuerpo') renderCuerpo();
   if(name==='resumen') renderResumen();
-  if(name==='hist') renderHistory();
   if(name==='datos') fillMonths();
   const sc = document.querySelector('main'); if(sc) sc.scrollTop = 0;
 }
@@ -880,7 +888,7 @@ document.getElementById('restoreInput').onchange = e => {
 };
 document.getElementById('btnReset').onclick = () => {
   openConfirm({ title:'Borrar todos los datos', desc:'Se elimina todo el historial de este dispositivo. Esta acción no se puede deshacer.', confirm:'Borrar todo', danger:true,
-    onConfirm:()=>{ DATA={}; PROFILE={altura:null}; saveData(); saveProfile(); current=todayKey(); render(); renderCuerpo(); renderHistory(); fillMonths(); toast('Datos borrados'); } });
+    onConfirm:()=>{ DATA={}; PROFILE={altura:null}; saveData(); saveProfile(); current=todayKey(); render(); renderCuerpo(); fillMonths(); toast('Datos borrados'); } });
 };
 
 document.querySelector('main').addEventListener('scroll', (e) => document.getElementById('appbar').classList.toggle('scrolled', e.target.scrollTop>4), { passive:true });
