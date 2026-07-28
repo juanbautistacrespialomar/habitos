@@ -153,8 +153,9 @@ function renderMeals(){
     const items = r.meals[m.key];
     const list = items.length
       ? `<div class="items">${items.map((it,i) => `
-          <div class="item"><span>${esc(it)}</span>
-            <button data-meal="${m.key}" data-i="${i}" aria-label="Quitar"><svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <div class="item">
+            <span class="item-txt" data-meal-edit="${m.key}" data-i="${i}">${esc(it)}</span>
+            <button class="item-del" data-meal="${m.key}" data-i="${i}" aria-label="Quitar"><svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
           </div>`).join('')}</div>`
       : `<div class="empty">Sin registros todavía.</div>`;
     return `
@@ -169,14 +170,68 @@ function renderMeals(){
   }).join('');
 
   wrap.querySelectorAll('[data-meal-add]').forEach(b => b.onclick = () => addMeal(b.dataset.mealAdd));
-  wrap.querySelectorAll('[data-meal-input]').forEach(inp => inp.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); addMeal(inp.dataset.mealInput); }}));
   wrap.querySelectorAll('[data-meal][data-i]').forEach(b => b.onclick = () => { day().meals[b.dataset.meal].splice(+b.dataset.i,1); saveData(); render(); });
+  wrap.querySelectorAll('[data-meal-edit]').forEach(sp => sp.onclick = () => editMealItem(sp.dataset.mealEdit, +sp.dataset.i));
+  wrap.querySelectorAll('[data-meal-input]').forEach(inp => {
+    inp.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); addMeal(inp.dataset.mealInput); }});
+    inp.addEventListener('focus', () => openFoodSuggest(inp, inp.dataset.mealInput));
+    inp.addEventListener('input', () => openFoodSuggest(inp, inp.dataset.mealInput));
+    inp.addEventListener('blur',  () => { suggestHideTimer = setTimeout(hideSuggest, 170); });
+  });
 }
 function addMeal(key){
   const inp = document.querySelector(`[data-meal-input="${key}"]`);
   const val = inp.value.trim(); if(!val) return;
   day().meals[key].push(val); saveData(); render();
-  const again = document.querySelector(`[data-meal-input="${key}"]`); if(again) again.focus();
+  const again = document.querySelector(`[data-meal-input="${key}"]`);
+  if(again){ again.focus(); openFoodSuggest(again, key); }
+}
+function editMealItem(key, i){
+  const actual = day().meals[key][i]; if(actual===undefined) return;
+  openInputModal({ title:'Editar alimento', placeholder:'Alimento', value:actual, confirm:'Guardar',
+    onConfirm:v => { const t=(v||'').trim(); const r=day(); if(t) r.meals[key][i]=t; else r.meals[key].splice(i,1); saveData(); render(); } });
+}
+
+/* ---------- Autocompletado de alimentos ---------- */
+// Quita acentos y pasa a minúsculas para comparar sin importar tildes/mayúsculas.
+function norm(s){ return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+// Junta todos los alimentos cargados en cualquier día/comida, contando repeticiones.
+function foodSuggestions(){
+  const map = new Map();
+  Object.values(DATA).forEach(r => {
+    if(!r || !r.meals) return;
+    MEALS.forEach(m => (r.meals[m.key]||[]).forEach(it => {
+      const name = String(it).trim(); if(!name) return;
+      const nk = norm(name);
+      if(map.has(nk)) map.get(nk).count++; else map.set(nk, { name, count:1 });
+    }));
+  });
+  return [...map.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'es'));
+}
+let suggestHideTimer = null;
+function suggestBox(){
+  let box = document.getElementById('foodSuggest');
+  if(!box){ box = document.createElement('div'); box.id='foodSuggest'; box.className='suggest hidden'; document.body.appendChild(box); }
+  return box;
+}
+function hideSuggest(){ clearTimeout(suggestHideTimer); const b=document.getElementById('foodSuggest'); if(b) b.classList.add('hidden'); }
+function openFoodSuggest(inp, mealKey){
+  clearTimeout(suggestHideTimer);
+  const q = norm(inp.value.trim());
+  let list = foodSuggestions();
+  if(q) list = list.filter(s => norm(s.name).includes(q) && norm(s.name)!==q);
+  list = list.slice(0, 6);
+  const box = suggestBox();
+  if(!list.length){ box.classList.add('hidden'); return; }
+  box.innerHTML = list.map(s => `<button type="button" data-food="${esc(s.name)}"><span>${esc(s.name)}</span>${s.count>1?`<small>×${s.count}</small>`:''}</button>`).join('');
+  const r = inp.getBoundingClientRect();
+  box.style.left = r.left+'px'; box.style.top = (r.bottom+6)+'px'; box.style.width = r.width+'px';
+  box.classList.remove('hidden');
+  box.querySelectorAll('[data-food]').forEach(btn => btn.onclick = () => {
+    day().meals[mealKey].push(btn.dataset.food); saveData(); render();
+    const again = document.querySelector(`[data-meal-input="${mealKey}"]`);
+    if(again){ again.value=''; again.focus(); openFoodSuggest(again, mealKey); } // seguir cargando rápido
+  });
 }
 
 /* ---------- Bebidas ---------- */
