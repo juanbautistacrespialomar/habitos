@@ -18,7 +18,7 @@ Una app de seguimiento de hábitos pensada para el uso diario desde el celular. 
 - **Edición rápida**: tocás el nombre del alimento (o el ícono de lápiz) para corregirlo; si lo dejás vacío, se elimina.
 - **Bebidas** por chips con contador: cerveza, vino, fernet, gaseosa y agua, más un botón "Otro" para cargar cualquier otra (café, mate, jugo…). Las alcohólicas se marcan aparte.
 - **Suplementos** con stepper: creatina (paso de 1 g) y proteína (paso de 5 g).
-- **Resumen del día**: comidas hechas (x/4), alcohol total, vasos de agua y suplementos.
+- **Resumen del día**: comidas hechas (x/4) y suplementos. (Bebidas y agua se siguen registrando en sus chips, pero no en el resumen superior.)
 
 ### 🏋️ Entreno
 - Registro de sesiones por tipo (**fútbol, gimnasio, otro**), con duración en minutos, **intensidad** (suave / media / alta) y una nota opcional.

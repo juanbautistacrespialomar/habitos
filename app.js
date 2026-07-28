@@ -125,16 +125,14 @@ function renderDateNav(){
 function renderSummary(){
   const r = day();
   const mealsDone = MEALS.filter(m => r.meals[m.key].length > 0).length;
-  const alcohol = DRINKS.filter(d => d.alcohol).reduce((s,d) => s + r.drinks[d.key], 0);
-  const agua = r.drinks.agua;
   const suppOn = SUPPS.filter(s => r.supp[s.key] > 0).length;
   const stats = [
     { top:'Comidas', val:`${mealsDone}<small>/4</small>`, frac:mealsDone/4 },
-    { top:'Alcohol', val:`${alcohol}`, frac: alcohol>0?1:0, warn: alcohol>0 },
-    { top:'Agua',    val:`${agua}<small> v</small>`, frac: Math.min(agua/8,1) },
-    { top:'Suple',   val: suppOn>0 ? '✓' : '—', frac: suppOn/2 },
+    { top:'Suplementos', val: suppOn>0 ? `${suppOn}<small>/2</small>` : '—', frac: suppOn/2 },
   ];
-  document.getElementById('summary').innerHTML = statHTML(stats);
+  const el = document.getElementById('summary');
+  el.style.gridTemplateColumns = 'repeat(2,1fr)'; // solo 2 tarjetas: que ocupen todo el ancho
+  el.innerHTML = statHTML(stats);
 }
 function statHTML(stats){
   return stats.map(s => `
@@ -171,7 +169,7 @@ function renderMeals(){
   }).join('');
 
   wrap.querySelectorAll('[data-meal-add]').forEach(b => b.onclick = () => addMeal(b.dataset.mealAdd));
-  wrap.querySelectorAll('[data-meal][data-i]').forEach(b => b.onclick = () => { day().meals[b.dataset.meal].splice(+b.dataset.i,1); saveData(); render(); });
+  wrap.querySelectorAll('[data-meal][data-i]').forEach(b => b.onclick = () => { day().meals[b.dataset.meal].splice(+b.dataset.i,1); saveData(); refreshMeals(); });
   wrap.querySelectorAll('[data-meal-edit]').forEach(sp => sp.onclick = () => editMealItem(sp.dataset.mealEdit, +sp.dataset.i));
   wrap.querySelectorAll('[data-meal-input]').forEach(inp => {
     inp.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); addMeal(inp.dataset.mealInput); }});
@@ -180,17 +178,27 @@ function renderMeals(){
     inp.addEventListener('blur',  () => { suggestHideTimer = setTimeout(hideSuggest, 170); });
   });
 }
+/* Re-render liviano tras tocar una comida: solo comidas + resumen, preservando
+   la posición del scroll. Evita el "salto hacia arriba" que producía render()
+   completo + focus() con el teclado abierto en iOS. */
+function refreshMeals(){
+  const main = document.querySelector('main');
+  const sc = main ? main.scrollTop : 0;
+  renderMeals();
+  renderSummary();
+  if(main) main.scrollTop = sc;
+}
 function addMeal(key){
   const inp = document.querySelector(`[data-meal-input="${key}"]`);
   const val = inp.value.trim(); if(!val) return;
-  day().meals[key].push(val); saveData(); render();
+  day().meals[key].push(val); saveData(); refreshMeals();
   const again = document.querySelector(`[data-meal-input="${key}"]`);
-  if(again){ again.focus(); openFoodSuggest(again, key); }
+  if(again){ again.focus({ preventScroll:true }); openFoodSuggest(again, key); }
 }
 function editMealItem(key, i){
   const actual = day().meals[key][i]; if(actual===undefined) return;
   openInputModal({ title:'Editar alimento', placeholder:'Alimento', value:actual, confirm:'Guardar',
-    onConfirm:v => { const t=(v||'').trim(); const r=day(); if(t) r.meals[key][i]=t; else r.meals[key].splice(i,1); saveData(); render(); } });
+    onConfirm:v => { const t=(v||'').trim(); const r=day(); if(t) r.meals[key][i]=t; else r.meals[key].splice(i,1); saveData(); refreshMeals(); } });
 }
 
 /* ---------- Autocompletado de alimentos ---------- */
@@ -238,9 +246,9 @@ function openFoodSuggest(inp, mealKey){
   positionSuggest(box, inp);
   box.classList.remove('hidden');
   box.querySelectorAll('[data-food]').forEach(btn => btn.onclick = () => {
-    day().meals[mealKey].push(btn.dataset.food); saveData(); render();
+    day().meals[mealKey].push(btn.dataset.food); saveData(); refreshMeals();
     const again = document.querySelector(`[data-meal-input="${mealKey}"]`);
-    if(again){ again.value=''; again.focus(); openFoodSuggest(again, mealKey); } // seguir cargando rápido
+    if(again){ again.value=''; again.focus({ preventScroll:true }); openFoodSuggest(again, mealKey); } // seguir cargando rápido
   });
 }
 // Si scrolleás o se abre/cierra el teclado, seguimos al input; si se fue de la

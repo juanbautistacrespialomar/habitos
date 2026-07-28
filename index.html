@@ -297,8 +297,8 @@ main{ width:100%; max-width:640px; margin:0 auto; flex:1 1 auto; min-height:0; o
 .btn-danger{background:#DC2626; color:#fff}
 
 /* ============ TOAST ============ */
-.toast{position:fixed; left:50%; transform:translateX(-50%) translateY(120px); bottom:calc(104px + var(--safe-bottom)); z-index:60; background:var(--text); color:var(--bg); padding:11px 18px; border-radius:999px; font-size:13.5px; font-weight:650; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:transform .3s cubic-bezier(.2,.9,.3,1.2); max-width:90%; text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed; left:50%; transform:translateX(-50%) translateY(120px); bottom:calc(104px + var(--safe-bottom)); z-index:60; background:var(--text); color:var(--bg); padding:11px 18px; border-radius:999px; font-size:13.5px; font-weight:650; box-shadow:0 8px 24px rgba(0,0,0,.3); opacity:0; pointer-events:none; transition:transform .3s cubic-bezier(.2,.9,.3,1.2), opacity .25s ease; max-width:90%; text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0); opacity:1}
 .hidden{display:none !important}
 </style>
 </head>
