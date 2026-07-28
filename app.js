@@ -167,6 +167,7 @@ function renderMeals(){
           <input type="text" placeholder="Agregar a ${m.label.toLowerCase()}…" data-meal-input="${m.key}" enterkeyhint="done" autocomplete="off" autocapitalize="sentences" />
           <button class="add" data-meal-add="${m.key}" aria-label="Agregar"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
         </div>
+        <div class="suggest-inline hidden" data-suggest="${m.key}"></div>
       </div>`;
   }).join('');
 
@@ -220,47 +221,30 @@ function foodSuggestions(){
   return [...map.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'es'));
 }
 let suggestHideTimer = null;
-let activeSuggest = null; // { inp, mealKey } del input que tiene el foco ahora
-function suggestBox(){
-  let box = document.getElementById('foodSuggest');
-  if(!box){ box = document.createElement('div'); box.id='foodSuggest'; box.className='suggest hidden'; document.body.appendChild(box); }
-  return box;
-}
-// Ancla el cajón (position:fixed) justo debajo del input. getBoundingClientRect
-// devuelve coordenadas de viewport, que es exactamente lo que usa position:fixed.
-function positionSuggest(box, inp){
-  const r = inp.getBoundingClientRect();
-  box.style.left  = r.left + 'px';
-  box.style.top   = (r.bottom + 6) + 'px';
-  box.style.width = r.width + 'px';
-}
-function hideSuggest(){ clearTimeout(suggestHideTimer); activeSuggest = null; const b=document.getElementById('foodSuggest'); if(b) b.classList.add('hidden'); }
+// Oculta todos los desplegables inline (hay uno por comida).
+function hideAllSuggest(){ document.querySelectorAll('.suggest-inline').forEach(b => { b.classList.add('hidden'); b.innerHTML=''; }); }
+function hideSuggest(){ clearTimeout(suggestHideTimer); hideAllSuggest(); }
+// Desplegable INLINE: se dibuja DENTRO de la tarjeta de la comida, justo debajo del
+// input. Al vivir en el flujo normal del scroll, se mueve con el contenido, aparece
+// siempre pegado a su input y nunca queda "flotando" ni bloquea el scroll. Esto elimina
+// de raíz el bug de position:fixed + teclado en iOS.
 function openFoodSuggest(inp, mealKey){
   clearTimeout(suggestHideTimer);
+  const box = document.querySelector(`.suggest-inline[data-suggest="${mealKey}"]`);
+  if(!box) return;
+  hideAllSuggest(); // que solo se vea el de la comida activa
   const q = norm(inp.value.trim());
   let list = foodSuggestions();
   if(q) list = list.filter(s => norm(s.name).includes(q) && norm(s.name)!==q);
   list = list.slice(0, 6);
-  const box = suggestBox();
-  if(!list.length){ box.classList.add('hidden'); activeSuggest = null; return; }
-  activeSuggest = { inp, mealKey };
+  if(!list.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
   box.innerHTML = list.map(s => `<button type="button" data-food="${esc(s.name)}"><span>${esc(s.name)}</span>${s.count>1?`<small>×${s.count}</small>`:''}</button>`).join('');
-  positionSuggest(box, inp);
   box.classList.remove('hidden');
   box.querySelectorAll('[data-food]').forEach(btn => btn.onclick = () => {
     day().meals[mealKey].push(btn.dataset.food); saveData(); refreshMeals();
     const again = document.querySelector(`[data-meal-input="${mealKey}"]`);
     if(again){ again.value=''; again.focus({ preventScroll:true }); openFoodSuggest(again, mealKey); } // seguir cargando rápido
   });
-}
-// Si scrolleás o se abre/cierra el teclado, seguimos al input; si se fue de la
-// zona visible, cerramos el cajón para que no quede "flotando" suelto.
-function repositionSuggest(){
-  const box = document.getElementById('foodSuggest');
-  if(!box || box.classList.contains('hidden') || !activeSuggest) return;
-  const r = activeSuggest.inp.getBoundingClientRect();
-  if(r.bottom < 84 || r.top > window.innerHeight - 70){ hideSuggest(); return; }
-  positionSuggest(box, activeSuggest.inp);
 }
 
 /* ---------- Bebidas ---------- */
@@ -748,9 +732,6 @@ document.getElementById('btnReset').onclick = () => {
 };
 
 document.querySelector('main').addEventListener('scroll', (e) => document.getElementById('appbar').classList.toggle('scrolled', e.target.scrollTop>4), { passive:true });
-// Mantener el desplegable de alimentos pegado a su input al scrollear o al abrir/cerrar el teclado.
-document.querySelector('main').addEventListener('scroll', repositionSuggest, { passive:true });
-window.addEventListener('resize', repositionSuggest);
 
 /* ---------- Instalación PWA ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt=e; document.getElementById('btnInstall').classList.remove('hidden'); });
