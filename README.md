@@ -39,7 +39,7 @@ Una app de seguimiento de hábitos pensada para el uso diario desde el celular. 
 - Todo se calcula sobre los datos existentes: no agrega ni cambia nada del modelo de datos.
 
 ### 💾 Datos
-- **Perfil**: nombre, fecha de nacimiento (calcula la edad), sexo, altura y objetivo. Se pide una vez al entrar (onboarding salteable) y se edita cuando quieras. Entra en el backup.
+- **Perfil**: nombre, fecha de nacimiento (calcula la edad), sexo y altura. Se pide una vez al entrar con una pantalla de bienvenida a pantalla completa (onboarding salteable) y se edita cuando quieras. Entra en el backup.
 - **Día completo configurable**: interruptores para elegir qué criterios (4 comidas, agua, entreno/descanso, creatina, proteína) cuentan para marcar un día como completo en el Resumen.
 - **Exportar CSV del mes** o **CSV completo** (una fila por registro, listo para tabla dinámica).
 - **Backup JSON** de todos los datos y **restaurar** desde archivo (por si cambiás de celular).

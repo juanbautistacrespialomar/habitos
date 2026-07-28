@@ -47,7 +47,7 @@ const THEME_KEY   = 'habitos_theme';
 
 /* ---------- Estado ---------- */
 let DATA = loadJSON(STORE_KEY, {});
-const PROFILE_DEFAULT = { altura:null, nombre:'', nacimiento:'', sexo:'', objetivo:'', onboarded:false };
+const PROFILE_DEFAULT = { altura:null, nombre:'', nacimiento:'', sexo:'', onboarded:false };
 let PROFILE = Object.assign({}, PROFILE_DEFAULT, loadJSON(PROFILE_KEY, {}));
 // Qué criterios cuentan para que un día sea "completo" (configurable desde Datos).
 const GOALS_DEFAULT = { comidas:true, agua:true, descanso:true, creatina:true, proteina:true };
@@ -769,55 +769,77 @@ function renderGoals(){
 }
 
 /* ============================================================
-   PERFIL (onboarding + edición en Datos)
+   PERFIL (onboarding a pantalla completa + edición en Datos)
    ============================================================ */
 const SEXOS = ['Masculino','Femenino','Otro'];
-const OBJETIVOS = ['Bajar','Mantener','Ganar'];
 const PERSON_ICON = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M5 20a7 7 0 0114 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
 
-function openProfileModal(opts={}){
-  const onboarding = !!opts.onboarding;
-  const state = {
-    nombre: PROFILE.nombre || '', nacimiento: PROFILE.nacimiento || '',
-    sexo: PROFILE.sexo || '', altura: PROFILE.altura || '', objetivo: PROFILE.objetivo || ''
-  };
-  const bg = document.getElementById('modalBg'), m = document.getElementById('modal');
+// Campos compartidos entre el onboarding y el modal de edición.
+function profileFieldsHTML(state){
+  return `
+    <div class="field"><label>Nombre</label><input id="fNom" placeholder="¿Cómo te llamás?" value="${esc(state.nombre)}" autocomplete="off" autocapitalize="words"></div>
+    <div class="field"><label>Fecha de nacimiento</label><input id="fNac" type="date" value="${state.nacimiento}" max="${todayKey()}"></div>
+    <div class="field"><label>Sexo</label><div class="seg" id="segSexo">${SEXOS.map(s=>`<button data-s="${s}" class="${state.sexo===s?'on':''}">${s}</button>`).join('')}</div></div>
+    <div class="field"><label>Altura (cm)</label><input id="fAlt" type="number" inputmode="numeric" min="80" max="260" placeholder="Ej: 178" value="${state.altura}"></div>`;
+}
+function readProfileFields(root, state){
+  const n=root.querySelector('#fNom'), na=root.querySelector('#fNac'), a=root.querySelector('#fAlt');
+  if(n) state.nombre=n.value; if(na) state.nacimiento=na.value; if(a) state.altura=a.value;
+}
+function commitProfile(state){
+  PROFILE.nombre = (state.nombre||'').trim();
+  PROFILE.nacimiento = state.nacimiento || '';
+  PROFILE.sexo = state.sexo || '';
+  const cm = parseInt(state.altura); if(cm>80 && cm<260) PROFILE.altura = cm;
+  PROFILE.onboarded = true; saveProfile();
+}
+
+// Onboarding a PANTALLA COMPLETA (primera vez), con logo y nombre de la app arriba.
+function showOnboarding(){
+  const el = document.getElementById('onboard');
+  const state = { nombre:PROFILE.nombre||'', nacimiento:PROFILE.nacimiento||'', sexo:PROFILE.sexo||'', altura:PROFILE.altura||'' };
+  function hide(){ el.classList.remove('show'); }
   function draw(){
-    m.innerHTML = `
-      <h3>${onboarding ? '¡Bienvenido! Contanos de vos' : 'Editar perfil'}</h3>
-      <p class="modal-desc">${onboarding ? 'Es opcional y lo podés cambiar cuando quieras desde Datos.' : 'Estos datos se guardan solo en tu dispositivo.'}</p>
-      <div class="field"><label>Nombre</label><input id="fNom" placeholder="¿Cómo te llamás?" value="${esc(state.nombre)}" autocomplete="off" autocapitalize="words"></div>
-      <div class="field"><label>Fecha de nacimiento</label><input id="fNac" type="date" value="${state.nacimiento}" max="${todayKey()}"></div>
-      <div class="field"><label>Sexo</label><div class="seg" id="segSexo">${SEXOS.map(s=>`<button data-s="${s}" class="${state.sexo===s?'on':''}">${s}</button>`).join('')}</div></div>
-      <div class="field"><label>Altura (cm)</label><input id="fAlt" type="number" inputmode="numeric" min="80" max="260" placeholder="Ej: 178" value="${state.altura}"></div>
-      <div class="field"><label>Objetivo</label><div class="seg" id="segObj">${OBJETIVOS.map(o=>`<button data-o="${o}" class="${state.objetivo===o?'on':''}">${o}</button>`).join('')}</div></div>
-      <div class="modal-actions"><button class="btn-ghost" id="mCancel">${onboarding ? 'Ahora no' : 'Cancelar'}</button><button class="btn-primary" id="mOk">Guardar</button></div>`;
-    bg.classList.add('show');
-    m.querySelectorAll('#segSexo button').forEach(b => b.onclick = () => { sync(); state.sexo = state.sexo===b.dataset.s ? '' : b.dataset.s; draw(); });
-    m.querySelectorAll('#segObj button').forEach(b => b.onclick = () => { sync(); state.objetivo = state.objetivo===b.dataset.o ? '' : b.dataset.o; draw(); });
-    m.querySelector('#mCancel').onclick = skip;
-    m.querySelector('#mOk').onclick = save;
-  }
-  function sync(){
-    const n=m.querySelector('#fNom'), na=m.querySelector('#fNac'), a=m.querySelector('#fAlt');
-    if(n) state.nombre=n.value; if(na) state.nacimiento=na.value; if(a) state.altura=a.value;
-  }
-  function markSeen(){ PROFILE.onboarded = true; saveProfile(); }
-  function skip(){ markSeen(); bg.classList.remove('show'); }        // "Ahora no": no guarda, pero no vuelve a molestar
-  function save(){
-    sync();
-    PROFILE.nombre = state.nombre.trim();
-    PROFILE.nacimiento = state.nacimiento || '';
-    PROFILE.sexo = state.sexo || '';
-    const cm = parseInt(state.altura); if(cm>80 && cm<260) PROFILE.altura = cm;
-    PROFILE.objetivo = state.objetivo || '';
-    markSeen();
-    bg.classList.remove('show');
-    renderPerfil(); renderCuerpo(); render();
-    haptic(); toast('Perfil guardado');
+    el.innerHTML = `
+      <div class="onboard-inner">
+        <div class="onboard-brand">
+          <div class="onboard-logo"><img src="icon-192.png" alt="Hábitos"></div>
+          <div class="onboard-app">Hábitos</div>
+        </div>
+        <h2 class="onboard-title">¡Bienvenido!</h2>
+        <p class="onboard-sub">Contanos un poco de vos. Es opcional y lo podés cambiar cuando quieras desde Datos.</p>
+        <div class="onboard-form">${profileFieldsHTML(state)}</div>
+        <div class="onboard-actions">
+          <button class="btn-primary" id="obOk">Empezar</button>
+          <button class="btn-ghost" id="obSkip">Ahora no</button>
+        </div>
+      </div>`;
+    el.querySelectorAll('#segSexo button').forEach(b => b.onclick = () => { readProfileFields(el,state); state.sexo = state.sexo===b.dataset.s ? '' : b.dataset.s; draw(); });
+    el.querySelector('#obOk').onclick = () => { readProfileFields(el,state); commitProfile(state); hide(); renderPerfil(); renderCuerpo(); render(); haptic(); toast('Perfil guardado'); };
+    el.querySelector('#obSkip').onclick = () => { PROFILE.onboarded=true; saveProfile(); hide(); };
   }
   draw();
-  bg.onclick = e => { if(e.target===bg) skip(); };
+  el.classList.add('show');
+}
+
+// Edición del perfil desde Datos (modal normal).
+function openProfileModal(){
+  const state = { nombre:PROFILE.nombre||'', nacimiento:PROFILE.nacimiento||'', sexo:PROFILE.sexo||'', altura:PROFILE.altura||'' };
+  const bg = document.getElementById('modalBg'), m = document.getElementById('modal');
+  function close(){ bg.classList.remove('show'); }
+  function draw(){
+    m.innerHTML = `
+      <h3>Editar perfil</h3>
+      <p class="modal-desc">Estos datos se guardan solo en tu dispositivo.</p>
+      ${profileFieldsHTML(state)}
+      <div class="modal-actions"><button class="btn-ghost" id="mCancel">Cancelar</button><button class="btn-primary" id="mOk">Guardar</button></div>`;
+    bg.classList.add('show');
+    m.querySelectorAll('#segSexo button').forEach(b => b.onclick = () => { readProfileFields(m,state); state.sexo = state.sexo===b.dataset.s ? '' : b.dataset.s; draw(); });
+    m.querySelector('#mCancel').onclick = close;
+    m.querySelector('#mOk').onclick = () => { readProfileFields(m,state); commitProfile(state); close(); renderPerfil(); renderCuerpo(); render(); haptic(); toast('Perfil guardado'); };
+  }
+  draw();
+  bg.onclick = e => { if(e.target===bg) close(); };
 }
 
 function renderPerfil(){
@@ -828,7 +850,6 @@ function renderPerfil(){
     ['Nacimiento', p.nacimiento ? p.nacimiento.split('-').reverse().join('/') : '—'],
     ['Sexo',       p.sexo || '—'],
     ['Altura',     p.altura ? `${p.altura} cm` : '—'],
-    ['Objetivo',   p.objetivo || '—'],
   ];
   wrap.innerHTML = `
     <div class="card res-pad profile-card">
@@ -1094,5 +1115,5 @@ if('serviceWorker' in navigator){
 initTheme();
 render();
 fillMonths();
-// Onboarding: la primera vez, ofrecemos completar el perfil (salteable, no vuelve a molestar).
-if(!PROFILE.onboarded){ setTimeout(() => openProfileModal({ onboarding:true }), 450); }
+// Onboarding: la primera vez mostramos el perfil a pantalla completa (salteable).
+if(!PROFILE.onboarded){ setTimeout(() => showOnboarding(), 350); }
