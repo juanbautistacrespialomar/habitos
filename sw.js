@@ -2,7 +2,7 @@
    IMPORTANTE: subí SOLO este número de versión cada vez que cambies
    index.html / app.js u otros assets. Con eso, las apps ya instaladas
    se actualizan solas (bajan los archivos frescos y recargan). */
-const CACHE = 'habitos-v14';
+const CACHE = 'habitos-v15';
 const ASSETS = [
   './',
   './index.html',

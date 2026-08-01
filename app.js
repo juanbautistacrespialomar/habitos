@@ -64,6 +64,22 @@ function dateToKey(d){
 function keyToDate(k){ const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
 function shiftDay(k, delta){ const d = keyToDate(k); d.setDate(d.getDate()+delta); return dateToKey(d); }
 function nf(n){ return String(n).replace('.', ','); } // número con coma decimal (es-AR)
+// Parseo tolerante es-AR: acepta coma O punto como separador decimal.
+// Si aparecen ambos, el que está más a la derecha es el decimal y el otro
+// se trata como separador de miles (ej: "1.234,5" y "1,234.5" dan lo mismo).
+function parseNum(v){
+  if(v==null) return NaN;
+  let s = String(v).trim().replace(/\s/g,''); // saca espacios y NBSP de miles
+  if(s==='') return NaN;
+  const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+  if(lc>-1 && ld>-1){
+    const dec = lc>ld ? ',' : '.', tho = dec===',' ? '.' : ',';
+    s = s.split(tho).join('').replace(dec,'.');
+  } else {
+    s = s.replace(',', '.');
+  }
+  return parseFloat(s);
+}
 function ageFrom(iso){
   if(!iso) return null;
   const b = keyToDate(iso); if(isNaN(b)) return null;
@@ -312,7 +328,7 @@ function renderSupps(){
   const card = document.getElementById('suppCard');
   card.querySelectorAll('[data-supp-plus]').forEach(b => b.onclick = () => bumpSupp(b.dataset.suppPlus,+1));
   card.querySelectorAll('[data-supp-minus]').forEach(b => b.onclick = () => bumpSupp(b.dataset.suppMinus,-1));
-  card.querySelectorAll('[data-supp-input]').forEach(inp => inp.onchange = () => { day().supp[inp.dataset.suppInput]=Math.max(0,parseFloat(inp.value.replace(',','.'))||0); saveData(); render(); });
+  card.querySelectorAll('[data-supp-input]').forEach(inp => inp.onchange = () => { day().supp[inp.dataset.suppInput]=Math.max(0,parseNum(inp.value)||0); saveData(); render(); });
 }
 function bumpSupp(key, dir){ const s=SUPPS.find(x=>x.key===key); const r=day(); r.supp[key]=Math.max(0,+(r.supp[key]+dir*s.step).toFixed(2)); saveData(); render(); haptic(); }
 
@@ -364,7 +380,7 @@ function renderSleep(){
       <div class="lbl">Sueño <span style="color:var(--faint); font-weight:600; font-size:12px">de anoche</span></div>
       <div class="stepper">
         <button id="sleepMinus" aria-label="Restar">−</button>
-        <input type="number" inputmode="decimal" min="0" max="24" step="0.5" value="${r.sueno!=null?r.sueno:''}" placeholder="—" id="sleepInput" style="width:64px">
+        <input type="text" inputmode="decimal" enterkeyhint="done" value="${r.sueno!=null?nf(r.sueno):''}" placeholder="—" id="sleepInput" style="width:64px">
         <span class="u">h</span>
         <button id="sleepPlus" aria-label="Sumar">+</button>
       </div>
@@ -373,7 +389,7 @@ function renderSleep(){
   document.getElementById('sleepMinus').onclick = () => bumpSleep(-0.5);
   document.getElementById('sleepInput').onchange = e => {
     const v = e.target.value.trim();
-    day().sueno = v==='' ? null : Math.max(0, Math.min(24, parseFloat(v.replace(',','.'))||0));
+    day().sueno = v==='' ? null : Math.max(0, Math.min(24, parseNum(v)||0));
     saveData(); render();
   };
 }
@@ -512,7 +528,7 @@ function sparkline(pts){
 
 function promptHeight(){
   openInputModal({ title:'Tu altura', desc:'En centímetros. Se usa para calcular el IMC.', placeholder:'Ej: 178', type:'number', value:PROFILE.altura||'', confirm:'Guardar',
-    onConfirm:v => { const cm=parseFloat(String(v).replace(',','.')); if(cm>80&&cm<260){ PROFILE.altura=Math.round(cm); saveProfile(); renderCuerpo(); render(); toast('Altura guardada'); } else toast('Altura inválida'); } });
+    onConfirm:v => { const cm=parseNum(v); if(cm>80&&cm<260){ PROFILE.altura=Math.round(cm); saveProfile(); renderCuerpo(); render(); toast('Altura guardada'); } else toast('Altura inválida'); } });
 }
 
 function openWeightModal(){
@@ -521,15 +537,15 @@ function openWeightModal(){
   m.innerHTML = `
     <h3>Registrar peso</h3>
     <div class="field"><label>Fecha</label><input id="wFecha" type="date" value="${state.fecha}" max="${todayKey()}"></div>
-    <div class="field"><label>Peso (kg)</label><input id="wPeso" type="number" inputmode="decimal" step="0.1" min="0" placeholder="Ej: 78,5" value="${state.peso}"></div>
-    <div class="field"><label>Cintura (cm) — opcional</label><input id="wCint" type="number" inputmode="decimal" step="0.5" min="0" placeholder="Perímetro abdominal" value="${state.cintura}"></div>
+    <div class="field"><label>Peso (kg)</label><input id="wPeso" type="text" inputmode="decimal" enterkeyhint="done" placeholder="Ej: 78,5" value="${state.peso!==''?nf(state.peso):''}"></div>
+    <div class="field"><label>Cintura (cm) — opcional</label><input id="wCint" type="text" inputmode="decimal" enterkeyhint="done" placeholder="Perímetro abdominal" value="${state.cintura!==''?nf(state.cintura):''}"></div>
     <div class="modal-actions"><button class="btn-ghost" id="mCancel">Cancelar</button><button class="btn-primary" id="mOk">Guardar</button></div>`;
   bg.classList.add('show');
   m.querySelector('#mCancel').onclick = () => bg.classList.remove('show');
   m.querySelector('#mOk').onclick = () => {
     const fecha = m.querySelector('#wFecha').value || todayKey();
-    const peso = parseFloat(m.querySelector('#wPeso').value.replace(',','.'));
-    const cint = parseFloat(m.querySelector('#wCint').value.replace(',','.'));
+    const peso = parseNum(m.querySelector('#wPeso').value);
+    const cint = parseNum(m.querySelector('#wCint').value);
     if(!(peso>0&&peso<400)){ toast('Peso inválido'); return; }
     if(!DATA[fecha]) DATA[fecha]=blankDay(); normalize(DATA[fecha]);
     DATA[fecha].peso = +peso.toFixed(1);
@@ -969,7 +985,7 @@ function switchView(name){
 function openInputModal({title, desc, placeholder, type='text', value='', confirm, onConfirm}){
   const bg=document.getElementById('modalBg'), m=document.getElementById('modal');
   m.innerHTML = `<h3>${esc(title)}</h3>${desc?`<p>${esc(desc)}</p>`:''}
-    <input id="mIn" type="${type}" inputmode="${type==='number'?'decimal':'text'}" placeholder="${esc(placeholder||'')}" value="${esc(String(value))}" enterkeyhint="done" autocomplete="off">
+    <input id="mIn" type="text" inputmode="${type==='number'?'decimal':'text'}" placeholder="${esc(placeholder||'')}" value="${esc(String(value))}" enterkeyhint="done" autocomplete="off">
     <div class="modal-actions"><button class="btn-ghost" id="mCancel">Cancelar</button><button class="btn-primary" id="mOk">${esc(confirm||'Aceptar')}</button></div>`;
   bg.classList.add('show');
   const inp=m.querySelector('#mIn'); setTimeout(()=>inp.focus(),50);
