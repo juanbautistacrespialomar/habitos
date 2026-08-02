@@ -666,6 +666,22 @@ function bestStreak(){
   keys.forEach(k => { cur = (prev && shiftDay(prev,1) === k) ? cur+1 : 1; if(cur > best) best = cur; prev = k; });
   return best;
 }
+// Racha de días SIN alcohol terminando en hoy. Cruza meses igual que completeStreak:
+// recorre DATA día por día hacia atrás con shiftDay y corta en el primer día con
+// alcohol > 0. Un día sin registro cuenta como sin alcohol (no rompe la racha), pero
+// no contamos más atrás del primer día con datos, para no sumar el vacío previo al uso.
+function soberStreak(){
+  const withData = Object.keys(DATA).filter(k => dayHasData(DATA[k])).sort();
+  if(!withData.length) return 0;
+  const firstKey = withData[0];
+  const drankOn = r => !!r && DRINKS.filter(d=>d.alcohol).reduce((s,d)=>s+((r.drinks&&r.drinks[d.key])||0),0) > 0;
+  let k = todayKey(), s = 0, guard = 0;
+  while(k >= firstKey && guard < 3660){
+    if(drankOn(DATA[k])) break;
+    s++; k = shiftDay(k, -1); guard++;
+  }
+  return s;
+}
 function periodStats(keys){
   const dk = keys.filter(k => DATA[k] && dayHasData(DATA[k]));
   const n = dk.length || 1;
@@ -699,6 +715,7 @@ function renderResumen(){
 
   const st  = periodStats(monthKeys);              // métricas del mes visible
   const cur = completeStreak(), best = bestStreak(); // racha: siempre global/actual
+  const sober = soberStreak();                        // días sin alcohol, cruza meses igual
 
   // ---- heatmap del mes (lunes primero) ----
   const firstDow = (new Date(Y, M-1, 1).getDay()+6)%7;
@@ -741,10 +758,10 @@ function renderResumen(){
     </div>
 
     <div class="res-stats">
-      <div class="res-stat"><div class="k">Comidas / día</div><div class="v">${nf(st.comidasProm.toFixed(1))}<small>/4</small></div><div class="sub">promedio del mes</div></div>
-      <div class="res-stat"><div class="k">Agua / día</div><div class="v">${nf(st.aguaProm.toFixed(1))}<small> v</small></div><div class="sub">promedio</div></div>
+      <div class="res-stat"><div class="k">Comidas / día</div><div class="v">${Math.round(st.comidasProm)}<small>/4</small></div><div class="sub">promedio del mes</div></div>
+      <div class="res-stat"><div class="k">Agua / día</div><div class="v">${Math.round(st.aguaProm)}<small> v</small></div><div class="sub">promedio</div></div>
       <div class="res-stat"><div class="k">Entrenos</div><div class="v">${st.entrenos}</div><div class="sub">${st.minutos} min</div></div>
-      <div class="res-stat"><div class="k">Días con alcohol</div><div class="v">${st.alcoholDays}</div><div class="sub">de ${st.dias} con registro</div></div>
+      <div class="res-stat"><div class="k">Racha sin alcohol</div><div class="v">${sober}<small> día${sober===1?'':'s'}</small></div><div class="sub">${st.alcoholDays} con alcohol en el mes</div></div>
     </div>
 
     <div class="section-title">Adherencia</div>
